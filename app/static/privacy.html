@@ -49,9 +49,19 @@
       <li>The URL is parsed to identify the repository owner and name.</li>
       <li>DevLens calls the public GitHub REST API to read that repository's already-public
         metadata, file listing, README, languages, license, and contributor count.</li>
+      <li>It also runs a small, code-level security scan of the repository: it checks
+        whether a <code>.env</code> file is committed, looks for common secret-key
+        patterns in a couple of likely entry files, and compares environment variables
+        used in the code against the project's <code>.env.example</code>. This scan only
+        reads files already public in the repository and never sends their content
+        anywhere beyond generating the on-screen findings.</li>
       <li>That signal is sent to an AI provider (Groq during development, Google Gemini in
-        production) solely to generate the on-screen summary, complexity score, warnings,
-        and install guide.</li>
+        production) solely to generate the on-screen summary, complexity score, judge
+        score, warnings, highlights, and install guide.</li>
+      <li>If the repository's README links to a demo video (YouTube or Loom) or contains
+        screenshot images, DevLens embeds them directly on the page so your browser loads
+        that media straight from the video platform or image host named in the README,
+        not from DevLens's own servers.</li>
       <li>The result is returned to your browser and rendered on the page. It is not saved
         to a database, log file, or any persistent storage on our servers.</li>
     </ul>
@@ -68,7 +78,10 @@
     <p>Analyzing a repo means DevLens talks to two external services on your behalf: the
     GitHub REST API (to read the repository you asked about) and an AI provider (Groq or
     Google Gemini, depending on configuration) to generate the written analysis. Each
-    provider processes the request under its own privacy policy.</p>
+    provider processes the request under its own privacy policy. If the result includes an
+    embedded demo video or screenshots, your browser also loads that media directly from
+    whichever platform or host the analyzed project's README points to (for example
+    YouTube, Loom, or the repository's own file host), under that provider's policy.</p>
 
     <h2>API keys</h2>
     <p>Server-side API keys (GitHub, Groq, Gemini) are stored only as environment variables

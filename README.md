@@ -84,6 +84,32 @@ Dashboard renders the verdict as cards and badges
   free iteration on the prompt and error handling before the final swap to Gemini.
 - **Data source:** GitHub REST API (public, no cloning, no auth required for public repos)
 
+## Gemini API integration
+
+Gemini is the mandatory AI provider for the final submission (Groq is only a
+free/fast stand-in used during development, see the note below). Everything
+Gemini-related lives in [`app/main.py`](app/main.py):
+
+- **Where it's called:** `call_gemini(signal)` sends the repo signal built by
+  `fetch_repo_signal()` (metadata, activity, license, languages, dependency
+  count, security-scan findings, README excerpt) to Google's standard
+  generative language endpoint:
+  `POST https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent`
+- **How the verdict is structured:** the same `SYSTEM_PROMPT` used for both
+  providers is passed as Gemini's `systemInstruction`, and
+  `generationConfig.responseMimeType` is set to `application/json` so Gemini
+  returns a clean JSON object matching DevLens's schema (summary,
+  complexity_score, complexity_factors, risk_level, tech_stack, highlights,
+  warnings, prerequisites, install_steps) with no markdown fences to strip.
+- **Switching providers:** the `AI_PROVIDER` environment variable is the only
+  thing that decides which provider runs; `call_ai()` dispatches to
+  `call_gemini()` when `AI_PROVIDER=gemini` and to `call_groq()` otherwise.
+  No other code path changes between providers, so the app's behavior and
+  output schema are identical regardless of which one is active.
+- **Where the key comes from:** `GEMINI_API_KEY` is read from the environment
+  via `python-dotenv` in `load_dotenv()` and is never hardcoded, logged, or
+  exposed to the browser (see [Security](#security)).
+
 ## Running locally
 
 ### Prerequisites
@@ -209,3 +235,38 @@ MIT
   side.
 - `GITHUB_TOKEN` moved from "recommended" to effectively required: the added security
   scan brings each analysis to roughly 8 to 10 GitHub API calls.
+
+### v5, Judge score transparency and smarter detection
+- Added a `judge_score_breakdown` returned by the API and rendered as an expandable
+  list (both on the main dashboard and in each Compare card) so it's clear exactly why
+  one repo outscored another instead of the number being a black box.
+- The demo/website link now prefers GitHub's own structured `homepage` field over
+  anything scraped from the README, since it's an authoritative, author-set value.
+- Fixed a demo-link false positive where README badges (funding badges, coverage
+  badges, solidarity banners) hosted on domains like `github.io` were being read as the
+  project's own live demo. `github.io` links are now only accepted when they belong to
+  the repo owner's own subdomain, plus a denylist for known non-demo badge domains.
+- The demo video, when found, is embedded and playable inline instead of only linking
+  out to it.
+- Fixed a horizontal page-overflow bug where a long warning/highlight/factor string
+  (e.g. a deeply nested file path) pushed the page wider than the viewport instead of
+  wrapping.
+
+### v6, Screenshot gallery, prerequisites, and comparison UX
+- Added a Screenshots gallery, deterministically extracted from README images
+  (markdown and HTML `<img>` tags), filtered against a badge/funding-service denylist
+  and SVGs (logos/badges) so it stays real project screenshots.
+- Added a Prerequisites chip row above the install guide (e.g. "Node.js >=18",
+  "Python 3.11+", "Docker", "Git"), using the exact Node engines version from
+  `package.json` when present instead of guessing.
+- Fixed Compare card misalignment so every card's "Why this score?" toggle and GitHub
+  link line up at the same height regardless of how much warning text each one has.
+- Compare now auto-seeds the repo already open on the main dashboard the first time
+  another repo is added to the comparison, plus duplicate-repo prevention and a
+  Clear all button.
+
+### v7, Mobile responsiveness and submission readiness
+- Verified and fixed mobile layout end to end: install-guide code blocks now wrap
+  instead of requiring horizontal scroll inside a tiny box, confirmed no element causes
+  horizontal page overflow at 375px width.
+- Added a dedicated Gemini API integration section to this README.

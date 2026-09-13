@@ -438,14 +438,14 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
         "dependency_source": dependency_info["source"],
         "node_engine": dependency_info["node_engine"],
         "file_count": len(file_paths),
-        "top_files": file_paths[:120],
+        "top_files": file_paths[:60],
         "has_dockerfile": any("dockerfile" in p.lower() for p in file_paths),
         "has_tests": any("test" in p.lower() for p in file_paths),
         "has_ci": any(p.startswith(".github/workflows") for p in file_paths),
         "has_env_example": any(
             p.lower() in (".env.example", ".env.sample") for p in file_paths
         ),
-        "readme_excerpt": readme_text[:4000],
+        "readme_excerpt": readme_text[:2000],
         "homepage_url": homepage,
         "demo_url": demo_url,
         "video_url": readme_links["video_url"],
@@ -582,6 +582,9 @@ Rules:
   Infer the runtime from dependency_source/tech stack (package.json -> Node.js, requirements.txt
   -> Python), always include "Git" if the install involves cloning, and include "Docker" only
   when has_dockerfile is true or the README clearly requires it.
+- Always respond entirely in English, regardless of what language the README, repo
+  description, topics, or any other input signal is written in. Translate as needed;
+  never mirror the source language back in your output.
 """
 
 
@@ -595,23 +598,49 @@ async def call_ai(signal: dict) -> dict:
     return await call_groq(signal)
 
 
+def _too_large(res: httpx.Response) -> bool:
+    return res.status_code == 413 or (res.status_code == 429 and "tokens" in res.text.lower())
+
+
 async def call_groq(signal: dict) -> dict:
     if not GROQ_API_KEY:
         raise HTTPException(500, "GROQ_API_KEY is not set on the server.")
 
-    payload = {
-        "model": GROQ_MODEL,
-        "messages": [
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": build_user_prompt(signal)},
-        ],
-        "temperature": 0.3,
-        "response_format": {"type": "json_object"},
-    }
     headers = {"Authorization": f"Bearer {GROQ_API_KEY}"}
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        res = await client.post(GROQ_URL, json=payload, headers=headers)
+    async def attempt(sig: dict) -> httpx.Response:
+        payload = {
+            "model": GROQ_MODEL,
+            "messages": [
+                {"role": "system", "content": SYSTEM_PROMPT},
+                {"role": "user", "content": build_user_prompt(sig)},
+            ],
+            "temperature": 0.3,
+            "response_format": {"type": "json_object"},
+        }
+        async with httpx.AsyncClient(timeout=30) as client:
+            return await client.post(GROQ_URL, json=payload, headers=headers)
+
+    res = await attempt(signal)
+
+    # Some repos (huge multi-doc READMEs, very large file trees) push the prompt past
+    # Groq's free-tier tokens-per-minute limit. Rather than fail outright, retry once
+    # with an aggressively trimmed copy of the signal before giving up.
+    if _too_large(res):
+        trimmed = {
+            **signal,
+            "readme_excerpt": (signal.get("readme_excerpt") or "")[:600],
+            "top_files": (signal.get("top_files") or [])[:15],
+        }
+        res = await attempt(trimmed)
+
+    if _too_large(res):
+        raise HTTPException(
+            413,
+            "This repository's README and file list are too large for Groq's free-tier "
+            "token limit, even after trimming. Try again with AI_PROVIDER=gemini "
+            "(Gemini's limits are much higher), or retry in a minute.",
+        )
     if res.status_code != 200:
         raise HTTPException(502, "The AI provider (Groq) returned an error.")
 

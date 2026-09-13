@@ -41,22 +41,27 @@
 
     <h2>1. What DevLens is</h2>
     <p>DevLens generates an AI-assisted, at-a-glance summary of a public GitHub repository:
-    a project description, a complexity score, a risk rating, warnings, and an install
-    guide. It is a triage aid, not a certification.</p>
+    a project description, a complexity score, a judge score, a risk rating, warnings, and
+    an install guide. It is a triage aid, not a certification.</p>
 
-    <h2>2. AI-generated content</h2>
-    <p>The summary, complexity score, risk level, warnings, highlights, and install steps
-    shown by DevLens are generated automatically by a large language model based on public
-    repository metadata. They may be incomplete, outdated, or inaccurate. DevLens does not
-    execute, compile, or run the analyzed code, and does not perform a manual security
-    review. Always verify anything important directly against the source repository before
-    relying on it.</p>
+    <h2>2. AI-generated content and the judge score</h2>
+    <p>The summary, complexity score, risk level, highlights, and install steps shown by
+    DevLens are generated automatically by a large language model based on public
+    repository metadata. They may be incomplete, outdated, or inaccurate. The judge score
+    (0 to 100) is calculated deterministically in code, not by the AI, from signals such as
+    license presence, tests, CI, activity, and warning severity; it is a convenience
+    heuristic for comparing repositories at a glance, not an authoritative ranking or a
+    guarantee of project quality. DevLens does not execute, compile, or run the analyzed
+    code, and does not perform a manual security review. Always verify anything important
+    directly against the source repository before relying on it.</p>
 
     <h2>3. Not a security or legal audit</h2>
     <p>DevLens is not a substitute for a professional security audit, a code review, or
-    legal or compliance advice. Risk ratings (Safe, Moderate, Warning) reflect
-    surface-level signals only (documentation quality, presence of tests and CI, license,
-    activity) and are not a guarantee that a repository is free of vulnerabilities or
+    legal or compliance advice. Risk ratings (Safe, Moderate, Warning) and the automated
+    security scan (which checks for a committed root-level <code>.env</code> file, common
+    secret key patterns in a couple of entry files, and undocumented environment
+    variables) reflect surface-level, best-effort signals only and are not a guarantee
+    that a repository is free of vulnerabilities or
     malicious code.</p>
 
     <h2>4. No warranty</h2>

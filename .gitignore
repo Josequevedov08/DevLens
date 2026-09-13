@@ -4,3 +4,9 @@ __pycache__/
 .venv/
 venv/
 .DS_Store
+cloudflared.exe
+cloudflared.log
+*_resp.json
+cn_out.txt
+cn_raw.txt
+devpost-submission.md

@@ -51,6 +51,11 @@
     <p>The page loads the Tailwind CSS library and the Inter font from public CDNs
     (<code>cdn.tailwindcss.com</code>, <code>fonts.googleapis.com</code>) purely for
     styling. These are static resources and do not set tracking cookies on their own.</p>
+    <p>When an analyzed repository's README links to a demo video, DevLens embeds that
+    video directly on the page (YouTube or Loom). That embedded player is loaded from the
+    video platform's own servers and may set its own cookies under its own domain,
+    subject to that platform's cookie and privacy policy, not DevLens's. This only happens
+    when a video is found and displayed, and DevLens itself still sets nothing.</p>
 
     <h2>If this changes</h2>
     <p>If a future version of DevLens introduces accounts, analytics, or any other feature
