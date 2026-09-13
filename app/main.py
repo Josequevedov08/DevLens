@@ -136,6 +136,106 @@ def days_since(iso_timestamp: str | None) -> int | None:
         return None
 
 
+# --- Deterministic README link extraction (no AI guessing involved) --------
+
+VIDEO_LINK_RE = re.compile(
+    r"https?://(?:www\.)?(?:youtube\.com/watch\?v=[\w-]+|youtu\.be/[\w-]+|"
+    r"loom\.com/share/[\w-]+)"
+)
+DEMO_LINK_RE = re.compile(
+    r'https?://[^\s\)\]"\'>]+\.(?:vercel\.app|netlify\.app|herokuapp\.com|'
+    r'onrender\.com|github\.io|pages\.dev|streamlit\.app|railway\.app)'
+    r'[^\s\)\]"\'>]*'
+)
+
+
+def extract_readme_links(readme_text: str) -> dict:
+    video_match = VIDEO_LINK_RE.search(readme_text)
+    demo_match = DEMO_LINK_RE.search(readme_text)
+    return {
+        "video_url": video_match.group(0) if video_match else None,
+        "demo_url": demo_match.group(0) if demo_match else None,
+    }
+
+
+# --- Deterministic security scan (regex-based, not AI-guessed) -------------
+#
+# This is a best-effort scan of the file tree plus a handful of likely entry
+# files. It is not a substitute for a real secret-scanning tool, but it turns
+# "the AI thinks env vars might be missing" into a concrete, checkable finding.
+
+ENTRY_FILE_CANDIDATES = [
+    "main.py", "app.py", "app/main.py", "manage.py",
+    "index.js", "index.ts", "src/index.js", "src/index.ts",
+    "server.js", "src/main.tsx", "src/main.jsx", "src/App.tsx", "src/App.jsx",
+]
+
+ENV_USAGE_PATTERNS = [
+    re.compile(r'os\.getenv\(\s*["\']([A-Z0-9_]+)["\']'),
+    re.compile(r'os\.environ(?:\.get)?\(?\[?\s*["\']([A-Z0-9_]+)["\']'),
+    re.compile(r'process\.env\.([A-Z0-9_]+)'),
+    re.compile(r'process\.env\[\s*["\']([A-Z0-9_]+)["\']\s*\]'),
+    re.compile(r'import\.meta\.env\.([A-Z0-9_]+)'),
+]
+
+SECRET_PATTERNS = [
+    ("AWS access key", re.compile(r"AKIA[0-9A-Z]{16}")),
+    ("Google API key", re.compile(r"AIza[0-9A-Za-z\-_]{35}")),
+    ("Stripe live key", re.compile(r"sk_live_[0-9A-Za-z]{16,}")),
+    ("Slack token", re.compile(r"xox[baprs]-[0-9A-Za-z-]{10,}")),
+    ("Private key block", re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----")),
+]
+
+
+async def scan_security(
+    client: httpx.AsyncClient, base: str, file_paths: list[str]
+) -> dict:
+    # Only a *root-level* .env is treated as a real leak risk. A .env nested under
+    # a tests/fixtures/examples-style directory is very commonly a harmless test
+    # fixture (e.g. for exercising dotenv-loading code), not a secret - so it is
+    # reported separately, at low severity, instead of raising a false alarm.
+    has_committed_env_file = ".env" in file_paths
+    nested_env_files = [
+        p for p in file_paths
+        if p != ".env" and (p.endswith("/.env") or "/.env." in p)
+    ]
+
+    env_example_keys: set[str] = set()
+    example_path = next(
+        (p for p in file_paths if p.lower() in (".env.example", ".env.sample")), None
+    )
+    if example_path:
+        content = await fetch_file_raw(client, base, example_path)
+        if content:
+            for line in content.splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    env_example_keys.add(line.split("=", 1)[0].strip())
+
+    candidates = [p for p in ENTRY_FILE_CANDIDATES if p in file_paths][:2]
+    used_env_vars: set[str] = set()
+    potential_secrets: list[dict] = []
+    for path in candidates:
+        content = await fetch_file_raw(client, base, path)
+        if not content:
+            continue
+        for pattern in ENV_USAGE_PATTERNS:
+            used_env_vars.update(pattern.findall(content))
+        for name, pattern in SECRET_PATTERNS:
+            if pattern.search(content):
+                potential_secrets.append({"file": path, "type": name})
+
+    undocumented_env_vars = sorted(v for v in used_env_vars if v not in env_example_keys)
+
+    return {
+        "has_committed_env_file": has_committed_env_file,
+        "nested_env_files": nested_env_files[:3],
+        "scanned_files": candidates,
+        "undocumented_env_vars": undocumented_env_vars,
+        "potential_secrets": potential_secrets,
+    }
+
+
 async def fetch_repo_signal(owner: str, repo: str) -> dict:
     base = f"https://api.github.com/repos/{owner}/{repo}"
     async with httpx.AsyncClient(
@@ -219,15 +319,17 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
                     return {"count": len(lines), "source": "requirements.txt"}
             return {"count": None, "source": None}
 
-        readme_text, top_languages, contributors_count, dependency_info = (
+        readme_text, top_languages, contributors_count, dependency_info, security = (
             await asyncio.gather(
                 get_readme(),
                 get_languages(),
                 get_contributors_count(),
                 get_dependency_info(),
+                scan_security(client, base, file_paths),
             )
         )
 
+    readme_links = extract_readme_links(readme_text)
     license_info = meta.get("license") or {}
 
     return {
@@ -258,7 +360,59 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
             p.lower() in (".env.example", ".env.sample") for p in file_paths
         ),
         "readme_excerpt": readme_text[:4000],
+        "demo_url": readme_links["demo_url"],
+        "video_url": readme_links["video_url"],
+        "has_committed_env_file": security["has_committed_env_file"],
+        "nested_env_files": security["nested_env_files"],
+        "undocumented_env_vars": security["undocumented_env_vars"],
+        "potential_secrets": security["potential_secrets"],
+        "security_scanned_files": security["scanned_files"],
     }
+
+
+# ---------------------------------------------------------------------------
+# Judge score: a deterministic 0-100 rollup, computed in code (not by the AI)
+# so judges get one comparable number that is always derived the same way.
+# ---------------------------------------------------------------------------
+
+SEVERITY_PENALTY = {"high": 15, "medium": 7, "low": 3}
+
+
+def compute_judge_score(signal: dict, verdict: dict) -> int:
+    score = 40
+
+    if signal.get("license"):
+        score += 15
+    if signal.get("has_tests"):
+        score += 10
+    if signal.get("has_ci"):
+        score += 10
+    if signal.get("has_dockerfile"):
+        score += 5
+    if signal.get("demo_url"):
+        score += 10
+
+    days = signal.get("days_since_last_commit")
+    if days is not None:
+        if days <= 30:
+            score += 10
+        elif days <= 180:
+            score += 5
+
+    for warning in verdict.get("warnings", []):
+        severity = warning.get("severity", "medium") if isinstance(warning, dict) else "medium"
+        score -= SEVERITY_PENALTY.get(severity, 7)
+
+    if signal.get("has_committed_env_file"):
+        score -= 20
+    elif signal.get("nested_env_files"):
+        score -= 5
+    if signal.get("potential_secrets"):
+        score -= 15
+    if signal.get("undocumented_env_vars") and not signal.get("has_env_example"):
+        score -= 5
+
+    return max(0, min(100, round(score)))
 
 
 # ---------------------------------------------------------------------------
@@ -298,9 +452,17 @@ Rules:
 - Use the provided signal (license presence, contributors_count, days_since_last_commit,
   has_tests, has_ci, has_dockerfile, has_env_example, dependency_count) to justify your
   warnings and highlights instead of guessing.
+- The signal also includes results of a real, code-level scan (not a guess):
+  has_committed_env_file, nested_env_files, potential_secrets, undocumented_env_vars,
+  demo_url, video_url. Do NOT restate these as your own warnings or highlights (the app
+  already surfaces them separately); use them only to inform your overall risk_level and
+  summary. Note that nested_env_files (a .env found inside a subdirectory, e.g. under
+  tests/) is usually a harmless test fixture, not a real secret leak, so treat it as
+  minor; has_committed_env_file (a .env at the repository root) is the real signal.
 - risk_level "Warning" if setup looks broken/unclear, secrets seem required with no example
-  env file, or the repo looks abandoned/undocumented; "Moderate" if there are some gaps (no
-  tests, no CI, stale activity); "Safe" if it looks clean, documented, and maintained.
+  env file, has_committed_env_file is true, potential_secrets is non-empty, or the repo
+  looks abandoned/undocumented; "Moderate" if there are some gaps (no tests, no CI, stale
+  activity); "Safe" if it looks clean, documented, and maintained.
 - "warnings" severity: "high" for things that would block a judge from running it (missing
   env vars with no example, broken/unclear install path), "medium" for real gaps (no tests,
   no CI, no license), "low" for minor nitpicks. Empty array if nothing notable.
@@ -412,6 +574,47 @@ async def analyze(req: AnalyzeRequest, request: Request):
     signal = await fetch_repo_signal(owner, repo)
     verdict = await call_ai(signal)
 
+    # Verified, code-level findings from our own scan take priority over the AI's
+    # warnings (which are asked not to duplicate these) and are labeled distinctly
+    # in the response so the frontend can mark them as "Verified" rather than AI-guessed.
+    scan_warnings = []
+    if signal["has_committed_env_file"]:
+        scan_warnings.append({
+            "severity": "high",
+            "text": "A .env file is committed at the repository root. If it contains "
+                    "real secrets, rotate them immediately.",
+            "source": "scan",
+        })
+    elif signal["nested_env_files"]:
+        scan_warnings.append({
+            "severity": "low",
+            "text": f"Found {signal['nested_env_files'][0]}. Likely a test fixture, but "
+                    f"worth a manual check for anything sensitive.",
+            "source": "scan",
+        })
+    for secret in signal["potential_secrets"]:
+        scan_warnings.append({
+            "severity": "high",
+            "text": f"Possible {secret['type']} found in {secret['file']}.",
+            "source": "scan",
+        })
+    if signal["undocumented_env_vars"]:
+        preview = ", ".join(signal["undocumented_env_vars"][:5])
+        scan_warnings.append({
+            "severity": "medium",
+            "text": f"Environment variables used in code but not documented in "
+                    f".env.example: {preview}.",
+            "source": "scan",
+        })
+
+    ai_warnings = [
+        {**w, "source": "ai"} if isinstance(w, dict) else {"severity": "medium", "text": w, "source": "ai"}
+        for w in verdict.get("warnings", [])
+    ]
+    verdict["warnings"] = scan_warnings + ai_warnings
+
+    judge_score = compute_judge_score(signal, verdict)
+
     return {
         "repo": signal["name"],
         "html_url": signal["html_url"],
@@ -428,9 +631,13 @@ async def analyze(req: AnalyzeRequest, request: Request):
         "dependency_count": signal["dependency_count"],
         "dependency_source": signal["dependency_source"],
         "days_since_last_commit": signal["days_since_last_commit"],
+        "created_at": signal["created_at"],
         "has_tests": signal["has_tests"],
         "has_ci": signal["has_ci"],
         "has_dockerfile": signal["has_dockerfile"],
+        "demo_url": signal["demo_url"],
+        "video_url": signal["video_url"],
+        "judge_score": judge_score,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         **verdict,
     }

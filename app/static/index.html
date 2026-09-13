@@ -139,13 +139,32 @@
     <section id="results" class="hidden space-y-6">
 
       <!-- Verdict banner -->
-      <div id="verdict-banner" class="fade-in dl-card p-6 flex items-center gap-4">
+      <div id="verdict-banner" class="fade-in dl-card p-6 flex items-center gap-4 flex-wrap">
         <div id="verdict-icon-wrap" class="dl-icon-badge w-12 h-12"></div>
-        <div>
+        <div class="flex-1 min-w-0">
           <p class="dl-label">Judge verdict</p>
           <p id="verdict-headline" class="text-lg font-bold"></p>
         </div>
+        <div class="flex items-center gap-4">
+          <div class="text-center">
+            <p id="judge-score-value" class="text-3xl font-extrabold leading-none"></p>
+            <p class="dl-label mt-1">Judge score</p>
+          </div>
+          <button
+            type="button"
+            id="copy-verdict-btn"
+            class="inline-flex items-center gap-1.5 rounded-xl border px-3 py-2 text-xs
+                   font-semibold hover:bg-[var(--tag)] transition bg-[var(--card)]"
+            style="border-color: var(--border); color: var(--fg-muted);"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+            <span>Copy verdict</span>
+          </button>
+        </div>
       </div>
+
+      <!-- Demo / video links, only shown when found in the README -->
+      <div id="demo-row" class="fade-in hidden flex flex-wrap gap-3"></div>
 
       <!-- Repo header -->
       <div class="fade-in dl-card p-6">
@@ -209,6 +228,10 @@
           <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M10 2v6.29a2 2 0 0 1-.5 1.32L4.21 15.7A2 2 0 0 0 6 19h12a2 2 0 0 0 1.79-3.3L14 9.6a2 2 0 0 1-.5-1.32V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg></div>
           <div id="stat-signals" class="text-xs font-semibold leading-tight"></div>
         </div>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-age">-</p><p class="text-xs dl-muted">Repo age</p></div>
+        </div>
       </div>
 
       <!-- Complexity -->
@@ -258,6 +281,39 @@
 
       <p id="generated-meta" class="text-center text-xs dl-muted"></p>
 
+    </section>
+
+    <!-- Compare repositories: judges shortlisting finalists can line up several
+         repos side by side instead of re-reading one detailed report at a time. -->
+    <section class="mt-14">
+      <details id="compare-section">
+        <summary class="cursor-pointer select-none flex items-center gap-2 text-sm font-semibold" style="color: var(--fg-muted);">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><rect x="3" y="3" width="7" height="18" rx="1"/><rect x="14" y="3" width="7" height="12" rx="1"/></svg>
+          Compare repositories
+        </summary>
+        <div class="mt-4 space-y-4">
+          <p class="text-sm dl-muted">Shortlisting finalists? Add a few repos here to see their judge scores side by side.</p>
+          <form id="compare-form" class="flex flex-col sm:flex-row gap-3">
+            <input
+              id="compare-url"
+              type="url"
+              placeholder="https://github.com/owner/repository"
+              class="flex-1 rounded-xl border px-4 py-2.5 text-sm shadow-sm bg-[var(--card)]
+                     focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+              style="border-color: var(--border);"
+            />
+            <button
+              type="submit"
+              class="rounded-xl border px-5 py-2.5 text-sm font-semibold hover:bg-[var(--tag)] transition"
+              style="border-color: var(--border);"
+            >
+              Add to comparison
+            </button>
+          </form>
+          <div id="compare-error" class="hidden rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3"></div>
+          <div id="compare-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
+        </div>
+      </details>
     </section>
   </main>
 
@@ -384,6 +440,42 @@
       return `${Math.round(days / 365)}y ago`;
     }
 
+    function judgeScoreColor(score) {
+      if (score >= 75) return "#15803d";
+      if (score >= 50) return "#b45309";
+      return "#b91c1c";
+    }
+
+    function buildVerdictText(data) {
+      const lines = [
+        `DevLens verdict for ${data.repo || "unknown repo"}`,
+        data.html_url || "",
+        "",
+        `Judge score: ${data.judge_score ?? "-"} / 100`,
+        `Risk: ${data.risk_level || "Unknown"}`,
+        `Complexity: ${data.complexity_score ?? "-"} / 10`,
+        "",
+        `Summary: ${data.summary || ""}`,
+      ];
+      if (data.highlights && data.highlights.length) {
+        lines.push("", "Highlights:");
+        data.highlights.forEach((h) => lines.push(`- ${h}`));
+      }
+      if (data.warnings && data.warnings.length) {
+        lines.push("", "Warnings:");
+        data.warnings.forEach((w) => {
+          const text = typeof w === "object" ? w.text : w;
+          const severity = typeof w === "object" ? w.severity : "medium";
+          lines.push(`- [${severity}] ${text}`);
+        });
+      }
+      if (data.install_steps && data.install_steps.length) {
+        lines.push("", "Install steps:");
+        data.install_steps.forEach((s, i) => lines.push(`${i + 1}. ${s}`));
+      }
+      return lines.join("\n");
+    }
+
     function renderResults(data) {
       const theme = RISK_THEME[data.risk_level] || RISK_THEME.Moderate;
       document.getElementById("verdict-banner").style.borderColor = theme.border;
@@ -395,6 +487,45 @@
       const headline = document.getElementById("verdict-headline");
       headline.style.color = theme.fg;
       headline.textContent = `${data.risk_level || "Unknown"}. ${theme.headline}`;
+
+      const scoreEl = document.getElementById("judge-score-value");
+      scoreEl.textContent = data.judge_score ?? "-";
+      scoreEl.style.color = judgeScoreColor(data.judge_score ?? 0);
+
+      const copyBtn = document.getElementById("copy-verdict-btn");
+      const copyLabel = copyBtn.querySelector("span");
+      copyBtn.onclick = async () => {
+        try {
+          await navigator.clipboard.writeText(buildVerdictText(data));
+          copyLabel.textContent = "Copied";
+          setTimeout(() => (copyLabel.textContent = "Copy verdict"), 1500);
+        } catch {
+          copyLabel.textContent = "Failed";
+        }
+      };
+
+      const demoRow = document.getElementById("demo-row");
+      demoRow.innerHTML = "";
+      const links = [
+        data.demo_url ? { url: data.demo_url, label: "Open live demo" } : null,
+        data.video_url ? { url: data.video_url, label: "Watch demo video" } : null,
+      ].filter(Boolean);
+      if (links.length) {
+        demoRow.classList.remove("hidden");
+        demoRow.classList.add("flex");
+        links.forEach(({ url, label }) => {
+          const a = document.createElement("a");
+          a.href = url;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.className = "inline-flex items-center gap-2 rounded-xl bg-primary text-white px-4 py-2.5 text-sm font-semibold hover:bg-primary-hover transition";
+          a.innerHTML = `${svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', "w-4 h-4")}<span>${label}</span>`;
+          demoRow.appendChild(a);
+        });
+      } else {
+        demoRow.classList.add("hidden");
+        demoRow.classList.remove("flex");
+      }
 
       document.getElementById("repo-avatar").src = data.avatar_url || "/static/logo.svg";
       document.getElementById("repo-name").textContent = data.repo || "Unknown repo";
@@ -427,6 +558,13 @@
         `${data.has_dockerfile ? "Has" : "No"} Docker`,
       ];
       document.getElementById("stat-signals").innerHTML = signals.join("<br/>");
+
+      if (data.created_at) {
+        const ageDays = Math.floor((Date.now() - new Date(data.created_at).getTime()) / 86400000);
+        document.getElementById("stat-age").textContent = timeAgo(ageDays);
+      } else {
+        document.getElementById("stat-age").textContent = "-";
+      }
 
       const score = Math.max(1, Math.min(10, Number(data.complexity_score) || 1));
       const bar = document.getElementById("complexity-bar");
@@ -499,13 +637,17 @@
         warnings.forEach((w) => {
           const severity = (typeof w === "object" && w.severity) || "medium";
           const text = typeof w === "object" ? w.text : w;
+          const source = typeof w === "object" ? w.source : "ai";
           const t = SEVERITY_THEME[severity] || SEVERITY_THEME.medium;
           const li = document.createElement("li");
           li.className = "flex items-start gap-2.5 rounded-xl px-3 py-2.5 font-medium";
           li.style.border = `1px solid ${t.border}`;
           li.style.backgroundColor = t.bg;
           li.style.color = t.fg;
-          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(t.icon, "w-4 h-4")}</span><span>${escapeHtml(text)}</span>`;
+          const badge = source === "scan"
+            ? '<span class="ml-1.5 align-middle text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background-color:rgba(0,0,0,0.08);">Verified</span>'
+            : "";
+          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(t.icon, "w-4 h-4")}</span><span>${escapeHtml(text)}${badge}</span>`;
           warningsList.appendChild(li);
         });
       } else {
@@ -553,6 +695,78 @@
 
       results.classList.remove("hidden");
     }
+
+    // --- Compare repositories -------------------------------------------
+    const compareForm = document.getElementById("compare-form");
+    const compareUrlInput = document.getElementById("compare-url");
+    const compareGrid = document.getElementById("compare-grid");
+    const compareError = document.getElementById("compare-error");
+    const compareItems = [];
+
+    function renderCompareGrid() {
+      compareGrid.innerHTML = "";
+      compareItems.forEach((item, index) => {
+        const theme = RISK_THEME[item.risk_level] || RISK_THEME.Moderate;
+        const card = document.createElement("div");
+        card.className = "dl-card p-4 fade-in";
+        card.innerHTML = `
+          <div class="flex items-start justify-between gap-2">
+            <div class="flex items-center gap-2 min-w-0">
+              <img src="${item.avatar_url || "/static/logo.svg"}" class="w-8 h-8 rounded-lg border shrink-0" style="border-color: var(--border);" alt="" />
+              <div class="min-w-0">
+                <p class="text-sm font-bold truncate">${escapeHtml(item.repo || "Unknown")}</p>
+                <p class="text-xs" style="color: ${theme.fg};">${escapeHtml(item.risk_level || "Unknown")}</p>
+              </div>
+            </div>
+            <button type="button" class="remove-compare shrink-0 text-xs" style="color: var(--fg-muted);" aria-label="Remove">
+              ${svg('<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>', "w-4 h-4")}
+            </button>
+          </div>
+          <div class="mt-3 flex items-center justify-between">
+            <span class="text-2xl font-extrabold" style="color: ${judgeScoreColor(item.judge_score ?? 0)};">${item.judge_score ?? "-"}</span>
+            <span class="dl-tag">${item.complexity_score ?? "-"} / 10 complexity</span>
+          </div>
+          <p class="text-xs mt-2 line-clamp-2" style="color: var(--fg-muted);">${escapeHtml((item.warnings && item.warnings[0] && item.warnings[0].text) || "No warnings flagged.")}</p>
+          <a href="${item.html_url || "#"}" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center gap-1 text-xs font-semibold" style="color: #2563eb;">
+            View on GitHub
+            ${svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', "w-3 h-3")}
+          </a>`;
+        card.querySelector(".remove-compare").addEventListener("click", () => {
+          compareItems.splice(index, 1);
+          renderCompareGrid();
+        });
+        compareGrid.appendChild(card);
+      });
+    }
+
+    compareForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const repoUrl = compareUrlInput.value.trim();
+      if (!repoUrl) return;
+      compareError.classList.add("hidden");
+
+      const submitBtn = compareForm.querySelector("button[type=submit]");
+      submitBtn.disabled = true;
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repo_url: repoUrl }),
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Something went wrong analyzing this repo.");
+        }
+        compareItems.push(data);
+        renderCompareGrid();
+        compareUrlInput.value = "";
+      } catch (err) {
+        compareError.textContent = err.message;
+        compareError.classList.remove("hidden");
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
   </script>
 </body>
 </html>
