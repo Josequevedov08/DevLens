@@ -30,14 +30,29 @@ READMEs and `requirements.txt` files.
    readable in under 10 seconds, with a direct link back to the source repository.
 
 ### Dashboard includes
-- **Judge verdict banner** stating the risk rating up front.
+- **Judge score (0 to 100)**, computed deterministically in code (not by the AI) from
+  license, tests, CI, Docker, a live demo link, recent activity, and warning severity, so
+  every repo is scored the same way and judges get one comparable number.
+- **Judge verdict banner** stating the risk rating up front, with a Copy verdict button
+  that copies a plain-text summary for a scoring sheet.
+- **Demo and video buttons**, deterministically extracted from the README (Vercel,
+  Netlify, GitHub Pages, YouTube, Loom, etc.) and surfaced above the fold, because "can I
+  see it running" is usually a judge's first question.
 - **Project summary**, exactly two sentences, no fluff.
-- **Complexity score**, a 1 to 10 gauge that shifts from green to red as complexity rises.
-- **Repo stats**: stars, forks, open issues, contributors, license, last commit activity,
-  and dependency count.
+- **Complexity score**, a 1 to 10 gauge that shifts from green to red as complexity rises,
+  with an expandable panel showing the 5 factors (codebase size, dependencies,
+  architecture, tech stack diversity, setup effort) behind the number.
+- **Repo stats**: stars, forks, open issues, contributors, license, repo age, last commit
+  activity, and dependency count.
+- **A real security scan**, not just an AI guess: flags a committed `.env` at the repo
+  root, common secret key patterns in entry files, and environment variables used in code
+  but undocumented in `.env.example`. These are labeled "Verified" in the UI to
+  distinguish them from the AI's own warnings.
 - **Highlights and warnings**, positive signals and risk signals shown side by side, each
   warning tagged with a severity (high, medium, low) so real blockers stand out.
 - **Quick install guide**, an interactive numbered stepper with a copy button per step.
+- **Compare repositories**, a collapsible section to shortlist a few repos and see their
+  judge scores, risk, and top warning side by side.
 
 ## Architecture
 
@@ -92,15 +107,17 @@ cp .env.example .env
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=your_key_here
-GITHUB_TOKEN=strongly_recommended_see_note_below
+GITHUB_TOKEN=required_in_practice_see_note_below
 ```
 
 > **About `GITHUB_TOKEN`:** DevLens pulls a lot of signal per analysis (metadata, file
-> tree, README, languages, contributors, license, dependency file), which adds up to
-> several GitHub API calls per repo. Unauthenticated requests are capped at 60 per hour,
-> which is easy to exhaust during a demo. A free
-> [personal access token](https://github.com/settings/tokens) (no scopes needed for
-> public repos) raises that to 5,000 per hour.
+> tree, README, languages, contributors, license, dependency file, plus a small security
+> scan of a couple of entry files), which adds up to roughly 8 to 10 GitHub API calls per
+> repo. Unauthenticated requests are capped at 60 per hour, so a demo can exhaust that in
+> 6 to 8 analyses. A free
+> [personal access token](https://github.com/settings/tokens) (classic, no scopes needed
+> for public repos) raises that to 5,000 per hour, so treat it as required rather than
+> optional before demoing.
 
 Run the server:
 
@@ -172,3 +189,23 @@ MIT
 - Fixed the install guide's code blocks, which used a black terminal look that clashed
   with the rest of the light UI, to match the page's card style.
 - Dropped "judge-friendly" from the tagline.
+
+### v4, Judge-first features
+- Added a deterministic Judge Score (0 to 100), computed in code from license, tests,
+  CI, Docker, demo link, activity, and warning severity, so judges get one comparable
+  number instead of five separate signals.
+- Added deterministic README parsing for a live demo link and/or a video link
+  (YouTube/Loom), surfaced as prominent buttons above the fold.
+- Added a real, code-level security scan (regex-based, not AI-guessed): a committed
+  root-level `.env` file, common secret key patterns in a couple of entry files, and env
+  vars used in code but undocumented in `.env.example`. Findings are labeled "Verified"
+  in the UI. Fixed a false positive where a nested test-fixture `.env` (for example
+  Flask's `tests/test_apps/.env`) was scored as a critical leak; only a root `.env` is
+  now high severity, nested ones are a low-severity note.
+- Added a Repo age stat (from `created_at`) so judges can spot repos that predate a
+  hackathon's start.
+- Added a Copy verdict button that copies a plain-text summary for a scoring sheet.
+- Added a collapsible Compare repositories section for shortlisting finalists side by
+  side.
+- `GITHUB_TOKEN` moved from "recommended" to effectively required: the added security
+  scan brings each analysis to roughly 8 to 10 GitHub API calls.
