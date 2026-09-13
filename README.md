@@ -166,3 +166,9 @@ MIT
 - Removed every emoji and em dash from the UI, README, and legal pages for a more
   professional tone.
 - Added an explicit "Back to DevLens" link on every legal page.
+- Added a "How this score is calculated" panel under the complexity gauge, listing the
+  5 factors (codebase size, dependencies, architecture, tech stack diversity, setup
+  effort) the AI is now required to justify with a per-repo note.
+- Fixed the install guide's code blocks, which used a black terminal look that clashed
+  with the rest of the light UI, to match the page's card style.
+- Dropped "judge-friendly" from the tagline.
