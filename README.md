@@ -86,8 +86,15 @@ cp .env.example .env
 ```env
 AI_PROVIDER=gemini
 GEMINI_API_KEY=your_key_here
-GITHUB_TOKEN=optional_but_avoids_rate_limits
+GITHUB_TOKEN=strongly_recommended_see_note_below
 ```
+
+> **About `GITHUB_TOKEN`:** DevLens now pulls a lot of signal per analysis (metadata,
+> file tree, README, languages, contributors, license, dependency file) — that's several
+> GitHub API calls per repo. Unauthenticated requests are capped at 60/hour, which is
+> easy to exhaust during a demo. A free
+> [personal access token](https://github.com/settings/tokens) (no scopes needed for
+> public repos) raises that to 5,000/hour.
 
 Run the server:
 
@@ -104,9 +111,17 @@ Open **http://localhost:8000** and paste in any public GitHub repo URL.
 
 ## 🔒 Security
 
-API keys are never hardcoded and are loaded exclusively via `python-dotenv` from a local
-`.env` file (excluded from version control via `.gitignore`). See `.env.example` for the
-full list of required variables.
+- API keys are never hardcoded and are loaded exclusively via `python-dotenv` from a
+  local `.env` file (excluded from version control via `.gitignore`). See
+  `.env.example` for the full list of required variables.
+- Errors returned to the client never leak upstream provider responses or keys.
+- `/api/analyze` is rate-limited per IP (in-memory, 10 requests/minute) to protect
+  against runaway AI-key spend.
+- Security response headers (`X-Content-Type-Options`, `X-Frame-Options`,
+  `Referrer-Policy`, `Permissions-Policy`) are set on every response.
+- DevLens does not use cookies, accounts, or any persistent storage — see the in-app
+  [Privacy Policy](app/static/privacy.html), [Terms of Service](app/static/terms.html),
+  and [Cookie Policy](app/static/cookies.html), also linked in the app's footer.
 
 ## 🧭 What's next
 
@@ -118,3 +133,23 @@ full list of required variables.
 ## 📄 License
 
 MIT
+
+## 📓 Changelog
+
+### v1 — Initial MVP
+- FastAPI backend + Groq/Gemini-switchable AI layer (`AI_PROVIDER` env var).
+- Single-page Tailwind dashboard: summary, complexity bar, warnings list, install guide.
+- `.env` / `.env.example`, `.gitignore`, Devpost-ready README.
+
+### v2 — Judge Dashboard revamp
+- Complexity gauge now color-codes green → amber → red by score instead of a flat bar.
+- Warnings carry a severity (`high`/`medium`/`low`) and render as bordered, colored
+  alert rows instead of a flat list — plus a separate green "Highlights" panel for
+  positive signals.
+- Install guide became an interactive numbered stepper with a per-step **Copy** button.
+- Signal pulled from GitHub expanded significantly: license, stars/forks/open issues,
+  contributors count, top languages, dependency count, last-commit recency, and a
+  direct **View on GitHub** link.
+- Added `/privacy`, `/terms`, `/cookies` pages linked from the footer.
+- Added basic hardening: per-IP rate limiting on `/api/analyze` and security response
+  headers.

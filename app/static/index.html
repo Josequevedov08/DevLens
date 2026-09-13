@@ -21,11 +21,25 @@
       }
     }
   </script>
+  <style>
+    @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+    .fade-in { animation: fade-in 0.35s ease-out both; }
+    .step-line::before {
+      content: "";
+      position: absolute;
+      left: 15px;
+      top: 32px;
+      bottom: -24px;
+      width: 2px;
+      background: #e2e8f0;
+    }
+    .step-line:last-child::before { display: none; }
+  </style>
 </head>
 <body class="bg-slate-50 min-h-screen text-slate-900">
 
   <!-- Header -->
-  <header class="border-b border-slate-200 bg-white">
+  <header class="border-b border-slate-200 bg-white sticky top-0 z-10">
     <div class="max-w-4xl mx-auto px-6 py-5 flex items-center gap-3">
       <img src="/static/logo.svg" alt="DevLens" class="w-9 h-9" />
       <div>
@@ -43,9 +57,9 @@
         Paste a repo. Get the verdict.
       </h2>
       <p class="mt-2 text-slate-500 max-w-xl mx-auto">
-        DevLens reads any public GitHub repository and turns it into a clean summary,
-        risk badge, warnings, and a quick install guide — built for hackathon judges
-        who don't have time to dig through code.
+        DevLens reads any public GitHub repository like a judge would and turns it into a
+        clean verdict — summary, risk badge, complexity, warnings, and a quick install
+        guide — without you ever opening the code.
       </p>
     </section>
 
@@ -84,47 +98,128 @@
     <!-- Results -->
     <section id="results" class="hidden space-y-6">
 
-      <!-- Header card -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <div class="flex items-start justify-between gap-4 flex-wrap">
-          <div>
-            <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Repository</p>
-            <h3 id="repo-name" class="text-lg font-bold text-slate-900"></h3>
-            <p id="repo-lang" class="text-sm text-slate-500 mt-1"></p>
-          </div>
-          <span id="risk-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"></span>
+      <!-- Verdict banner -->
+      <div id="verdict-banner" class="fade-in rounded-2xl border p-6 flex items-center gap-4">
+        <span id="verdict-icon" class="text-3xl leading-none"></span>
+        <div>
+          <p class="text-xs uppercase tracking-wide font-semibold opacity-70">Judge Verdict</p>
+          <p id="verdict-headline" class="text-lg font-extrabold"></p>
         </div>
+      </div>
+
+      <!-- Repo header card -->
+      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div class="flex items-center gap-3">
+            <img id="repo-avatar" class="w-12 h-12 rounded-xl border border-slate-200" alt="" />
+            <div>
+              <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Repository</p>
+              <h3 id="repo-name" class="text-lg font-bold text-slate-900"></h3>
+              <p id="repo-lang" class="text-sm text-slate-500 mt-0.5"></p>
+            </div>
+          </div>
+          <a
+            id="repo-link"
+            href="#"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2
+                   text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+          >
+            View on GitHub ↗
+          </a>
+        </div>
+        <div id="topics-row" class="flex flex-wrap gap-2 mt-4"></div>
         <p id="summary" class="mt-4 text-slate-700 leading-relaxed"></p>
       </div>
 
+      <!-- Stats grid -->
+      <div class="fade-in grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-stars">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Stars</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-forks">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Forks</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-issues">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Open Issues</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-contributors">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Contributors</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-license">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">License</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-activity">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Last Commit</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-deps">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Dependencies</p>
+        </div>
+        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
+          <p class="text-lg font-extrabold text-slate-900" id="stat-signals">–</p>
+          <p class="text-xs text-slate-500 mt-0.5">Tests · CI · Docker</p>
+        </div>
+      </div>
+
       <!-- Complexity -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Complexity Score</p>
+      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-center justify-between mb-2">
+          <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Complexity Score</p>
+          <span id="complexity-label" class="text-xs font-bold px-2 py-0.5 rounded-full"></span>
+        </div>
         <div class="flex items-center gap-4">
           <div class="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
-            <div id="complexity-bar" class="h-full bg-brand-600 rounded-full transition-all duration-500"></div>
+            <div id="complexity-bar" class="h-full rounded-full transition-all duration-700 ease-out" style="width:0%"></div>
           </div>
           <span id="complexity-value" class="text-sm font-bold text-slate-700 w-16 text-right"></span>
         </div>
       </div>
 
-      <!-- Warnings -->
-      <div id="warnings-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Key Warnings</p>
-        <ul id="warnings-list" class="space-y-2 text-sm"></ul>
+      <!-- Tech stack -->
+      <div id="tech-card" class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Tech Stack</p>
+        <div id="tech-row" class="flex flex-wrap gap-2"></div>
+      </div>
+
+      <!-- Highlights + Warnings -->
+      <div class="grid sm:grid-cols-2 gap-6">
+        <div id="highlights-card" class="fade-in bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-6">
+          <p class="text-xs uppercase tracking-wide text-emerald-700 font-bold mb-3">✅ Highlights</p>
+          <ul id="highlights-list" class="space-y-2 text-sm"></ul>
+        </div>
+        <div id="warnings-card" class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <p class="text-xs uppercase tracking-wide text-slate-500 font-bold mb-3">⚠ Key Warnings</p>
+          <ul id="warnings-list" class="space-y-3 text-sm"></ul>
+        </div>
       </div>
 
       <!-- Install guide -->
-      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Quick Install Guide</p>
-        <ol id="install-list" class="space-y-2 text-sm list-decimal list-inside text-slate-700"></ol>
+      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-4">Quick Install Guide</p>
+        <ol id="install-list" class="space-y-0"></ol>
       </div>
+
+      <!-- Footer meta -->
+      <p id="generated-meta" class="text-center text-xs text-slate-400"></p>
 
     </section>
   </main>
 
-  <footer class="text-center text-xs text-slate-400 py-10">
-    Built for the hackathon with FastAPI + Tailwind. Powered by AI.
+  <footer class="text-center text-xs text-slate-400 py-10 space-y-2">
+    <p>Built for the hackathon with FastAPI + Tailwind. Verdicts are AI-generated — verify before relying on them.</p>
+    <p class="space-x-4">
+      <a href="/privacy" class="hover:text-slate-600 underline">Privacy Policy</a>
+      <a href="/terms" class="hover:text-slate-600 underline">Terms of Service</a>
+      <a href="/cookies" class="hover:text-slate-600 underline">Cookie Policy</a>
+    </p>
   </footer>
 
   <script>
@@ -135,10 +230,28 @@
     const errorBox = document.getElementById("error-box");
     const results = document.getElementById("results");
 
-    const riskStyles = {
-      Safe: "bg-emerald-100 text-emerald-700",
-      Moderate: "bg-amber-100 text-amber-700",
-      Warning: "bg-red-100 text-red-700",
+    const RISK_THEME = {
+      Safe: {
+        banner: "bg-emerald-50 border-emerald-200 text-emerald-800",
+        icon: "✅",
+        headline: "Safe to demo — looks clean and well documented.",
+      },
+      Moderate: {
+        banner: "bg-amber-50 border-amber-200 text-amber-800",
+        icon: "🟡",
+        headline: "Needs a closer look — some gaps, but workable.",
+      },
+      Warning: {
+        banner: "bg-red-50 border-red-200 text-red-800",
+        icon: "🚫",
+        headline: "Proceed with caution — setup or docs look risky.",
+      },
+    };
+
+    const SEVERITY_THEME = {
+      high: { border: "border-red-400", bg: "bg-red-50", text: "text-red-700", icon: "🔴" },
+      medium: { border: "border-amber-400", bg: "bg-amber-50", text: "text-amber-700", icon: "🟠" },
+      low: { border: "border-slate-300", bg: "bg-slate-50", text: "text-slate-600", icon: "⚪" },
     };
 
     form.addEventListener("submit", async (e) => {
@@ -174,52 +287,194 @@
       }
     });
 
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str ?? "";
+      return div.innerHTML;
+    }
+
+    // Green (easy) -> amber -> red (complex) gradient, interpolated by score.
+    function scoreColor(score) {
+      const stops = [
+        { at: 1, rgb: [16, 185, 129] },   // emerald-500
+        { at: 5.5, rgb: [245, 158, 11] }, // amber-500
+        { at: 10, rgb: [239, 68, 68] },   // red-500
+      ];
+      let a = stops[0], b = stops[stops.length - 1];
+      for (let i = 0; i < stops.length - 1; i++) {
+        if (score >= stops[i].at && score <= stops[i + 1].at) {
+          a = stops[i]; b = stops[i + 1];
+          break;
+        }
+      }
+      const t = b.at === a.at ? 0 : (score - a.at) / (b.at - a.at);
+      const rgb = a.rgb.map((v, i) => Math.round(v + (b.rgb[i] - v) * t));
+      return `rgb(${rgb[0]}, ${rgb[1]}, ${rgb[2]})`;
+    }
+
+    function complexityLabel(score) {
+      if (score <= 3) return { text: "Simple", cls: "bg-emerald-100 text-emerald-700" };
+      if (score <= 6) return { text: "Moderate", cls: "bg-amber-100 text-amber-700" };
+      return { text: "Complex", cls: "bg-red-100 text-red-700" };
+    }
+
+    function timeAgo(days) {
+      if (days === null || days === undefined) return "Unknown";
+      if (days === 0) return "Today";
+      if (days === 1) return "Yesterday";
+      if (days < 30) return `${days}d ago`;
+      if (days < 365) return `${Math.round(days / 30)}mo ago`;
+      return `${Math.round(days / 365)}y ago`;
+    }
+
     function renderResults(data) {
+      // Verdict banner
+      const theme = RISK_THEME[data.risk_level] || RISK_THEME.Moderate;
+      const banner = document.getElementById("verdict-banner");
+      banner.className = `fade-in rounded-2xl border p-6 flex items-center gap-4 ${theme.banner}`;
+      document.getElementById("verdict-icon").textContent = theme.icon;
+      document.getElementById("verdict-headline").textContent =
+        `${data.risk_level || "Unknown"} — ${theme.headline}`;
+
+      // Repo header
+      document.getElementById("repo-avatar").src = data.avatar_url || "/static/logo.svg";
       document.getElementById("repo-name").textContent = data.repo || "Unknown repo";
       document.getElementById("repo-lang").textContent =
         [data.language, data.stars ? `⭐ ${data.stars}` : null].filter(Boolean).join(" · ");
+      document.getElementById("repo-link").href = data.html_url || "#";
       document.getElementById("summary").textContent = data.summary || "";
 
-      const badge = document.getElementById("risk-badge");
-      badge.textContent = data.risk_level || "Unknown";
-      badge.className =
-        "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold " +
-        (riskStyles[data.risk_level] || "bg-slate-100 text-slate-600");
+      const topicsRow = document.getElementById("topics-row");
+      topicsRow.innerHTML = "";
+      (data.topics || []).slice(0, 8).forEach((t) => {
+        const span = document.createElement("span");
+        span.className = "text-xs font-medium px-2.5 py-1 rounded-full bg-brand-50 text-brand-700";
+        span.textContent = t;
+        topicsRow.appendChild(span);
+      });
 
+      // Stats grid
+      document.getElementById("stat-stars").textContent = data.stars ?? "–";
+      document.getElementById("stat-forks").textContent = data.forks ?? "–";
+      document.getElementById("stat-issues").textContent = data.open_issues ?? "–";
+      document.getElementById("stat-contributors").textContent = data.contributors_count ?? "–";
+      document.getElementById("stat-license").textContent = data.license || "None";
+      document.getElementById("stat-activity").textContent = timeAgo(data.days_since_last_commit);
+      document.getElementById("stat-deps").textContent =
+        data.dependency_count !== null && data.dependency_count !== undefined
+          ? data.dependency_count
+          : "–";
+      const signals = [
+        data.has_tests ? "✓ Tests" : "✗ Tests",
+        data.has_ci ? "✓ CI" : "✗ CI",
+        data.has_dockerfile ? "✓ Docker" : "✗ Docker",
+      ];
+      document.getElementById("stat-signals").innerHTML =
+        `<span class="text-xs font-semibold leading-tight block">${signals.join("<br/>")}</span>`;
+
+      // Complexity gauge
       const score = Math.max(1, Math.min(10, Number(data.complexity_score) || 1));
-      document.getElementById("complexity-bar").style.width = `${score * 10}%`;
+      const bar = document.getElementById("complexity-bar");
+      bar.style.width = `${score * 10}%`;
+      bar.style.backgroundColor = scoreColor(score);
       document.getElementById("complexity-value").textContent = `${score} / 10`;
+      const label = complexityLabel(score);
+      const labelEl = document.getElementById("complexity-label");
+      labelEl.textContent = label.text;
+      labelEl.className = `text-xs font-bold px-2 py-0.5 rounded-full ${label.cls}`;
 
+      // Tech stack
+      const techCard = document.getElementById("tech-card");
+      const techRow = document.getElementById("tech-row");
+      techRow.innerHTML = "";
+      if (data.tech_stack && data.tech_stack.length) {
+        techCard.classList.remove("hidden");
+        data.tech_stack.forEach((t) => {
+          const span = document.createElement("span");
+          span.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white";
+          span.textContent = t;
+          techRow.appendChild(span);
+        });
+      } else {
+        techCard.classList.add("hidden");
+      }
+
+      // Highlights
+      const highlightsCard = document.getElementById("highlights-card");
+      const highlightsList = document.getElementById("highlights-list");
+      highlightsList.innerHTML = "";
+      if (data.highlights && data.highlights.length) {
+        highlightsCard.classList.remove("hidden");
+        data.highlights.forEach((h) => {
+          const li = document.createElement("li");
+          li.className = "flex items-start gap-2 text-emerald-800";
+          li.innerHTML = `<span class="mt-0.5">✓</span><span>${escapeHtml(h)}</span>`;
+          highlightsList.appendChild(li);
+        });
+      } else {
+        highlightsCard.classList.add("hidden");
+      }
+
+      // Warnings — severity-colored alert rows so they actually pop.
       const warningsList = document.getElementById("warnings-list");
       const warningsCard = document.getElementById("warnings-card");
       warningsList.innerHTML = "";
-      if (data.warnings && data.warnings.length) {
+      const warnings = data.warnings || [];
+      if (warnings.length) {
         warningsCard.classList.remove("hidden");
-        data.warnings.forEach((w) => {
+        warnings.forEach((w) => {
+          const severity = (typeof w === "object" && w.severity) || "medium";
+          const text = typeof w === "object" ? w.text : w;
+          const t = SEVERITY_THEME[severity] || SEVERITY_THEME.medium;
           const li = document.createElement("li");
-          li.className = "flex items-start gap-2 text-slate-700";
-          li.innerHTML = `<span class="text-amber-500 mt-0.5">⚠</span><span>${escapeHtml(w)}</span>`;
+          li.className = `flex items-start gap-2 border-l-4 ${t.border} ${t.bg} ${t.text} rounded-r-lg px-3 py-2 font-medium`;
+          li.innerHTML = `<span class="mt-0.5">${t.icon}</span><span>${escapeHtml(text)}</span>`;
           warningsList.appendChild(li);
         });
       } else {
         warningsCard.classList.add("hidden");
       }
 
+      // Install guide — interactive stepper with copy buttons.
       const installList = document.getElementById("install-list");
       installList.innerHTML = "";
-      (data.install_steps || []).forEach((step) => {
+      (data.install_steps || []).forEach((step, i) => {
         const li = document.createElement("li");
-        li.textContent = step;
+        li.className = "step-line relative pl-11 pb-6 last:pb-0";
+        li.innerHTML = `
+          <span class="absolute left-0 top-0 w-8 h-8 rounded-full bg-brand-600 text-white text-sm
+                       font-bold flex items-center justify-center">${i + 1}</span>
+          <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2.5">
+            <code class="flex-1 text-emerald-300 text-sm font-mono overflow-x-auto whitespace-pre">${escapeHtml(step)}</code>
+            <button type="button"
+              class="copy-btn shrink-0 text-xs font-semibold text-slate-300 hover:text-white
+                     border border-slate-600 hover:border-slate-400 rounded-md px-2 py-1 transition">
+              Copy
+            </button>
+          </div>`;
+        const btn = li.querySelector(".copy-btn");
+        btn.addEventListener("click", async () => {
+          try {
+            await navigator.clipboard.writeText(step);
+            btn.textContent = "Copied!";
+            setTimeout(() => (btn.textContent = "Copy"), 1500);
+          } catch {
+            btn.textContent = "Failed";
+          }
+        });
         installList.appendChild(li);
       });
 
-      results.classList.remove("hidden");
-    }
+      // Footer meta
+      const generatedMeta = document.getElementById("generated-meta");
+      if (data.generated_at) {
+        const d = new Date(data.generated_at);
+        generatedMeta.textContent = `Generated ${d.toLocaleString()} · Verdict is AI-generated, verify before relying on it.`;
+      } else {
+        generatedMeta.textContent = "";
+      }
 
-    function escapeHtml(str) {
-      const div = document.createElement("div");
-      div.textContent = str;
-      return div.innerHTML;
+      results.classList.remove("hidden");
     }
   </script>
 </body>

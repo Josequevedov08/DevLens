@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Privacy Policy — DevLens</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-800">
+  <header class="border-b border-slate-200 bg-white">
+    <div class="max-w-3xl mx-auto px-6 py-5 flex items-center gap-3">
+      <a href="/" class="flex items-center gap-3">
+        <img src="/static/logo.svg" alt="DevLens" class="w-8 h-8" />
+        <span class="text-lg font-bold text-indigo-700">DevLens</span>
+      </a>
+    </div>
+  </header>
+
+  <main class="max-w-3xl mx-auto px-6 py-12 prose prose-slate">
+    <h1 class="text-3xl font-extrabold text-slate-900">Privacy Policy</h1>
+    <p class="text-sm text-slate-500">Last updated: 2026</p>
+
+    <p>DevLens was built as a hackathon MVP to help judges quickly assess public GitHub
+    repositories. This page explains, plainly, what happens to the data you give it.</p>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">What you submit</h2>
+    <p>The only input DevLens accepts is a public GitHub repository URL that you paste
+    into the form on the home page. We do not require an account, a login, or any
+    personal information to use the tool.</p>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">What DevLens does with it</h2>
+    <ul>
+      <li>The URL is parsed to identify the repository owner and name.</li>
+      <li>DevLens calls the public GitHub REST API to read that repository's already-public
+        metadata, file listing, README, languages, license, and contributor count.</li>
+      <li>That signal is sent to an AI provider (Groq during development, Google Gemini in
+        production) solely to generate the on-screen summary, complexity score, warnings,
+        and install guide.</li>
+      <li>The result is returned to your browser and rendered on the page. It is not saved
+        to a database, log file, or any persistent storage on our servers.</li>
+    </ul>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">What we don't do</h2>
+    <ul>
+      <li>We don't create accounts or store personal information.</li>
+      <li>We don't use analytics, trackers, or advertising pixels.</li>
+      <li>We don't sell or share any data, because we don't retain any.</li>
+      <li>We don't access private repositories unless you separately configure your own
+        GitHub token in your own deployment — the public demo only reads public repos.</li>
+    </ul>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">Third parties involved</h2>
+    <p>Analyzing a repo means DevLens talks to two external services on your behalf:
+    the <strong>GitHub REST API</strong> (to read the repository you asked about) and an
+    <strong>AI provider</strong> (Groq or Google Gemini, depending on configuration) to
+    generate the written analysis. Each of those providers processes the request under
+    their own respective privacy policies.</p>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">API keys</h2>
+    <p>Server-side API keys (GitHub, Groq, Gemini) are stored only as environment
+    variables on the server and are never exposed to your browser or included in any
+    client-side code.</p>
+
+    <h2 class="text-xl font-bold text-slate-900 mt-8">Contact</h2>
+    <p>Questions about this policy can be directed to the project maintainer via the
+    <a href="https://github.com/Josequevedov08/DevLens" class="text-indigo-600 underline">
+    GitHub repository</a>.</p>
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 py-10 space-x-4">
+    <a href="/" class="hover:text-slate-600">Home</a>
+    <a href="/privacy" class="hover:text-slate-600">Privacy</a>
+    <a href="/terms" class="hover:text-slate-600">Terms</a>
+    <a href="/cookies" class="hover:text-slate-600">Cookies</a>
+  </footer>
+</body>
+</html>
