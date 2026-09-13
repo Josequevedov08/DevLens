@@ -1,0 +1,226 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevLens — Instant Repo Audits</title>
+  <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc",
+              400: "#818cf8", 500: "#6366f1", 600: "#4f46e5", 700: "#4338ca",
+              800: "#3730a3", 900: "#312e81"
+            }
+          }
+        }
+      }
+    }
+  </script>
+</head>
+<body class="bg-slate-50 min-h-screen text-slate-900">
+
+  <!-- Header -->
+  <header class="border-b border-slate-200 bg-white">
+    <div class="max-w-4xl mx-auto px-6 py-5 flex items-center gap-3">
+      <img src="/static/logo.svg" alt="DevLens" class="w-9 h-9" />
+      <div>
+        <h1 class="text-xl font-bold text-brand-700">DevLens</h1>
+        <p class="text-xs text-slate-500">Instant, judge-friendly repo audits</p>
+      </div>
+    </div>
+  </header>
+
+  <main class="max-w-4xl mx-auto px-6 py-10">
+
+    <!-- Intro -->
+    <section class="text-center mb-10">
+      <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">
+        Paste a repo. Get the verdict.
+      </h2>
+      <p class="mt-2 text-slate-500 max-w-xl mx-auto">
+        DevLens reads any public GitHub repository and turns it into a clean summary,
+        risk badge, warnings, and a quick install guide — built for hackathon judges
+        who don't have time to dig through code.
+      </p>
+    </section>
+
+    <!-- Input form -->
+    <form id="analyze-form" class="flex flex-col sm:flex-row gap-3 mb-8">
+      <input
+        id="repo-url"
+        type="url"
+        required
+        placeholder="https://github.com/owner/repository"
+        class="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm
+               focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+      />
+      <button
+        type="submit"
+        id="submit-btn"
+        class="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white
+               shadow-sm hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+      >
+        Analyze Repo
+      </button>
+    </form>
+
+    <!-- Loading state -->
+    <div id="loading" class="hidden flex-col items-center justify-center gap-3 py-16">
+      <svg class="animate-spin h-8 w-8 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
+      </svg>
+      <p class="text-sm text-slate-500">Reading the repo and forming a verdict…</p>
+    </div>
+
+    <!-- Error state -->
+    <div id="error-box" class="hidden rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 mb-6"></div>
+
+    <!-- Results -->
+    <section id="results" class="hidden space-y-6">
+
+      <!-- Header card -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <div class="flex items-start justify-between gap-4 flex-wrap">
+          <div>
+            <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Repository</p>
+            <h3 id="repo-name" class="text-lg font-bold text-slate-900"></h3>
+            <p id="repo-lang" class="text-sm text-slate-500 mt-1"></p>
+          </div>
+          <span id="risk-badge" class="inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold"></span>
+        </div>
+        <p id="summary" class="mt-4 text-slate-700 leading-relaxed"></p>
+      </div>
+
+      <!-- Complexity -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-2">Complexity Score</p>
+        <div class="flex items-center gap-4">
+          <div class="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+            <div id="complexity-bar" class="h-full bg-brand-600 rounded-full transition-all duration-500"></div>
+          </div>
+          <span id="complexity-value" class="text-sm font-bold text-slate-700 w-16 text-right"></span>
+        </div>
+      </div>
+
+      <!-- Warnings -->
+      <div id="warnings-card" class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Key Warnings</p>
+        <ul id="warnings-list" class="space-y-2 text-sm"></ul>
+      </div>
+
+      <!-- Install guide -->
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Quick Install Guide</p>
+        <ol id="install-list" class="space-y-2 text-sm list-decimal list-inside text-slate-700"></ol>
+      </div>
+
+    </section>
+  </main>
+
+  <footer class="text-center text-xs text-slate-400 py-10">
+    Built for the hackathon with FastAPI + Tailwind. Powered by AI.
+  </footer>
+
+  <script>
+    const form = document.getElementById("analyze-form");
+    const input = document.getElementById("repo-url");
+    const submitBtn = document.getElementById("submit-btn");
+    const loading = document.getElementById("loading");
+    const errorBox = document.getElementById("error-box");
+    const results = document.getElementById("results");
+
+    const riskStyles = {
+      Safe: "bg-emerald-100 text-emerald-700",
+      Moderate: "bg-amber-100 text-amber-700",
+      Warning: "bg-red-100 text-red-700",
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const repoUrl = input.value.trim();
+      if (!repoUrl) return;
+
+      results.classList.add("hidden");
+      errorBox.classList.add("hidden");
+      loading.classList.remove("hidden");
+      loading.classList.add("flex");
+      submitBtn.disabled = true;
+
+      try {
+        const res = await fetch("/api/analyze", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ repo_url: repoUrl }),
+        });
+
+        const data = await res.json();
+        if (!res.ok) {
+          throw new Error(data.detail || "Something went wrong analyzing this repo.");
+        }
+        renderResults(data);
+      } catch (err) {
+        errorBox.textContent = err.message;
+        errorBox.classList.remove("hidden");
+      } finally {
+        loading.classList.add("hidden");
+        loading.classList.remove("flex");
+        submitBtn.disabled = false;
+      }
+    });
+
+    function renderResults(data) {
+      document.getElementById("repo-name").textContent = data.repo || "Unknown repo";
+      document.getElementById("repo-lang").textContent =
+        [data.language, data.stars ? `⭐ ${data.stars}` : null].filter(Boolean).join(" · ");
+      document.getElementById("summary").textContent = data.summary || "";
+
+      const badge = document.getElementById("risk-badge");
+      badge.textContent = data.risk_level || "Unknown";
+      badge.className =
+        "inline-flex items-center px-3 py-1 rounded-full text-sm font-semibold " +
+        (riskStyles[data.risk_level] || "bg-slate-100 text-slate-600");
+
+      const score = Math.max(1, Math.min(10, Number(data.complexity_score) || 1));
+      document.getElementById("complexity-bar").style.width = `${score * 10}%`;
+      document.getElementById("complexity-value").textContent = `${score} / 10`;
+
+      const warningsList = document.getElementById("warnings-list");
+      const warningsCard = document.getElementById("warnings-card");
+      warningsList.innerHTML = "";
+      if (data.warnings && data.warnings.length) {
+        warningsCard.classList.remove("hidden");
+        data.warnings.forEach((w) => {
+          const li = document.createElement("li");
+          li.className = "flex items-start gap-2 text-slate-700";
+          li.innerHTML = `<span class="text-amber-500 mt-0.5">⚠</span><span>${escapeHtml(w)}</span>`;
+          warningsList.appendChild(li);
+        });
+      } else {
+        warningsCard.classList.add("hidden");
+      }
+
+      const installList = document.getElementById("install-list");
+      installList.innerHTML = "";
+      (data.install_steps || []).forEach((step) => {
+        const li = document.createElement("li");
+        li.textContent = step;
+        installList.appendChild(li);
+      });
+
+      results.classList.remove("hidden");
+    }
+
+    function escapeHtml(str) {
+      const div = document.createElement("div");
+      div.textContent = str;
+      return div.innerHTML;
+    }
+  </script>
+</body>
+</html>
