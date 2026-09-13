@@ -7,6 +7,8 @@ DevLens takes a single GitHub repo link and turns it into a clean, one-page dash
 (Safe / Moderate / Warning), the key setup warnings, and a copy-pasteable install guide,
 all generated in seconds by AI.
 
+![DevLens dashboard showing a judge score, verdict, and screenshot gallery](app/static/screenshot.png)
+
 ---
 
 ## Inspiration
