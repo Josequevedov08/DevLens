@@ -181,6 +181,58 @@ def extract_readme_links(readme_text: str, owner: str = "") -> dict:
     }
 
 
+# --- Deterministic README screenshot gallery --------------------------------
+
+MARKDOWN_IMAGE_RE = re.compile(r'!\[[^\]]*\]\(\s*([^)\s]+)(?:\s+"[^"]*")?\s*\)')
+HTML_IMAGE_RE = re.compile(r'<img[^>]+src=["\']([^"\']+)["\']', re.IGNORECASE)
+IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".gif", ".webp")
+
+# Badge/funding/coverage services that show up as inline README images but are
+# never a project screenshot - filtered out so the gallery stays real screenshots.
+IMAGE_DENYLIST = (
+    "shields.io", "badge.fury.io", "badgen.net", "travis-ci.", "codecov.io",
+    "coveralls.io", "circleci.com", "opencollective.com", "buymeacoffee.com",
+    "patreon.com", "sourcerer.io", "visitor-badge", "hits.sh", "wakatime.com",
+    "gitpod.io/button", "standwithukraine", "githubsponsors",
+)
+
+
+def extract_readme_images(
+    readme_text: str, owner: str, repo: str, default_branch: str
+) -> list[str]:
+    raw_matches = MARKDOWN_IMAGE_RE.findall(readme_text) + HTML_IMAGE_RE.findall(readme_text)
+    images: list[str] = []
+    seen: set[str] = set()
+
+    for src in raw_matches:
+        src = src.strip()
+        low = src.lower()
+        # SVGs are almost always logos, badges, or icons, not real screenshots.
+        if not low.split("?")[0].endswith(IMAGE_EXTENSIONS):
+            continue
+        if any(bad in low for bad in IMAGE_DENYLIST):
+            continue
+
+        if src.startswith("http://") or src.startswith("https://"):
+            url = src
+        else:
+            # A relative path in the README points at a file in the repo itself;
+            # resolve it against the raw content host so it actually renders.
+            url = (
+                f"https://raw.githubusercontent.com/{owner}/{repo}/{default_branch}/"
+                + src.lstrip("./")
+            )
+
+        if url not in seen:
+            seen.add(url)
+            images.append(url)
+
+        if len(images) >= 6:
+            break
+
+    return images
+
+
 # --- Deterministic security scan (regex-based, not AI-guessed) -------------
 #
 # This is a best-effort scan of the file tree plus a handful of likely entry
@@ -329,7 +381,11 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
                         count = len(pkg.get("dependencies", {})) + len(
                             pkg.get("devDependencies", {})
                         )
-                        return {"count": count, "source": "package.json"}
+                        return {
+                            "count": count,
+                            "source": "package.json",
+                            "node_engine": (pkg.get("engines") or {}).get("node"),
+                        }
                     except Exception:
                         pass
             if "requirements.txt" in file_paths:
@@ -339,8 +395,8 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
                         ln for ln in content.splitlines()
                         if ln.strip() and not ln.strip().startswith("#")
                     ]
-                    return {"count": len(lines), "source": "requirements.txt"}
-            return {"count": None, "source": None}
+                    return {"count": len(lines), "source": "requirements.txt", "node_engine": None}
+            return {"count": None, "source": None, "node_engine": None}
 
         readme_text, top_languages, contributors_count, dependency_info, security = (
             await asyncio.gather(
@@ -353,6 +409,7 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
         )
 
     readme_links = extract_readme_links(readme_text, owner=owner)
+    screenshots = extract_readme_images(readme_text, owner, repo, default_branch)
     # GitHub's own "homepage" field (the link shown next to a repo's description on
     # GitHub) is a structured, author-set value, more reliable than anything scraped
     # out of README prose, so it takes priority as the demo link when present.
@@ -379,6 +436,7 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
         "top_languages": top_languages,
         "dependency_count": dependency_info["count"],
         "dependency_source": dependency_info["source"],
+        "node_engine": dependency_info["node_engine"],
         "file_count": len(file_paths),
         "top_files": file_paths[:120],
         "has_dockerfile": any("dockerfile" in p.lower() for p in file_paths),
@@ -391,6 +449,7 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
         "homepage_url": homepage,
         "demo_url": demo_url,
         "video_url": readme_links["video_url"],
+        "screenshots": screenshots,
         "has_committed_env_file": security["has_committed_env_file"],
         "nested_env_files": security["nested_env_files"],
         "undocumented_env_vars": security["undocumented_env_vars"],
@@ -488,6 +547,7 @@ prose, matching exactly this schema:
   "warnings": [
     {"severity": "high" | "medium" | "low", "text": "short, specific warning"}
   ],
+  "prerequisites": ["short recommended requirements to clone/run this repo, e.g. Python 3.11+, Node.js 18+, Docker, Git, max 5"],
   "install_steps": ["ordered, concise, copy-pasteable steps to run the project locally"]
 }
 
@@ -517,6 +577,11 @@ Rules:
   "Active in the last week", "Includes tests"). Empty array if genuinely nothing stands out.
 - install_steps should be 3-7 steps, inferred from the file list / README (package.json,
   requirements.txt, Dockerfile, etc.).
+- "prerequisites" should be concrete and specific, not generic. Use node_engine verbatim
+  when present (e.g. node_engine ">=18" -> "Node.js >=18") instead of guessing a version.
+  Infer the runtime from dependency_source/tech stack (package.json -> Node.js, requirements.txt
+  -> Python), always include "Git" if the install involves cloning, and include "Docker" only
+  when has_dockerfile is true or the README clearly requires it.
 """
 
 
@@ -685,6 +750,7 @@ async def analyze(req: AnalyzeRequest, request: Request):
         "homepage_url": signal["homepage_url"],
         "demo_url": signal["demo_url"],
         "video_url": signal["video_url"],
+        "screenshots": signal["screenshots"],
         "judge_score": judge_score,
         "judge_score_breakdown": judge_score_breakdown,
         "generated_at": datetime.now(timezone.utc).isoformat(),

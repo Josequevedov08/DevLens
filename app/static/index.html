@@ -180,6 +180,12 @@
       <!-- Demo / website links -->
       <div id="demo-row" class="fade-in hidden flex flex-wrap gap-3"></div>
 
+      <!-- README screenshots -->
+      <div id="gallery-card" class="fade-in hidden dl-card p-6">
+        <p class="dl-label mb-3">Screenshots</p>
+        <div id="gallery-row" class="grid grid-cols-2 sm:grid-cols-3 gap-3"></div>
+      </div>
+
       <!-- Repo header -->
       <div class="fade-in dl-card p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap">
@@ -295,7 +301,10 @@
 
       <!-- Install guide -->
       <div class="fade-in dl-card p-6">
-        <p class="dl-label mb-4">Quick install guide</p>
+        <div class="flex items-center justify-between mb-4 flex-wrap gap-2">
+          <p class="dl-label">Quick install guide</p>
+          <div id="prereq-row" class="hidden flex-wrap gap-2"></div>
+        </div>
         <ol id="install-list" class="space-y-0"></ol>
       </div>
 
@@ -331,6 +340,16 @@
             </button>
           </form>
           <div id="compare-error" class="hidden rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3"></div>
+          <div id="compare-clear-row" class="hidden flex justify-end">
+            <button
+              type="button"
+              id="compare-clear-btn"
+              class="text-xs font-semibold hover:underline"
+              style="color: var(--fg-muted);"
+            >
+              Clear all
+            </button>
+          </div>
           <div id="compare-grid" class="grid sm:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </div>
       </details>
@@ -557,6 +576,47 @@
         videoWrap.classList.add("hidden");
       }
 
+      const galleryCard = document.getElementById("gallery-card");
+      const galleryRow = document.getElementById("gallery-row");
+      galleryRow.innerHTML = "";
+      if (data.screenshots && data.screenshots.length) {
+        galleryCard.classList.remove("hidden");
+        data.screenshots.forEach((src) => {
+          const a = document.createElement("a");
+          a.href = src;
+          a.target = "_blank";
+          a.rel = "noopener noreferrer";
+          a.className = "block rounded-xl overflow-hidden border hover:opacity-90 transition";
+          a.style.borderColor = "var(--border)";
+          const img = document.createElement("img");
+          img.src = src;
+          img.loading = "lazy";
+          img.className = "w-full h-32 object-cover";
+          img.alt = "Repository screenshot";
+          img.onerror = () => a.remove();
+          a.appendChild(img);
+          galleryRow.appendChild(a);
+        });
+      } else {
+        galleryCard.classList.add("hidden");
+      }
+
+      const prereqRow = document.getElementById("prereq-row");
+      prereqRow.innerHTML = "";
+      if (data.prerequisites && data.prerequisites.length) {
+        prereqRow.classList.remove("hidden");
+        prereqRow.classList.add("flex");
+        data.prerequisites.forEach((p) => {
+          const span = document.createElement("span");
+          span.className = "dl-tag";
+          span.textContent = p;
+          prereqRow.appendChild(span);
+        });
+      } else {
+        prereqRow.classList.add("hidden");
+        prereqRow.classList.remove("flex");
+      }
+
       const demoRow = document.getElementById("demo-row");
       demoRow.innerHTML = "";
       const links = [
@@ -749,6 +809,7 @@
       }
 
       results.classList.remove("hidden");
+      lastMainResult = data;
     }
 
     // --- Compare repositories -------------------------------------------
@@ -756,14 +817,18 @@
     const compareUrlInput = document.getElementById("compare-url");
     const compareGrid = document.getElementById("compare-grid");
     const compareError = document.getElementById("compare-error");
+    const compareClearRow = document.getElementById("compare-clear-row");
+    const compareClearBtn = document.getElementById("compare-clear-btn");
+    let lastMainResult = null;
     const compareItems = [];
 
     function renderCompareGrid() {
       compareGrid.innerHTML = "";
+      compareClearRow.classList.toggle("hidden", compareItems.length === 0);
       compareItems.forEach((item, index) => {
         const theme = RISK_THEME[item.risk_level] || RISK_THEME.Moderate;
         const card = document.createElement("div");
-        card.className = "dl-card p-4 fade-in";
+        card.className = "dl-card p-4 fade-in flex flex-col h-full";
         card.innerHTML = `
           <div class="flex items-start justify-between gap-2">
             <div class="flex items-center gap-2 min-w-0">
@@ -781,21 +846,23 @@
             <span class="text-2xl font-extrabold" style="color: ${judgeScoreColor(item.judge_score ?? 0)};">${item.judge_score ?? "-"}</span>
             <span class="dl-tag">${item.complexity_score ?? "-"} / 10 complexity</span>
           </div>
-          <p class="text-xs mt-2 line-clamp-2" style="color: var(--fg-muted);">${escapeHtml((item.warnings && item.warnings[0] && item.warnings[0].text) || "No warnings flagged.")}</p>
-          <details class="mt-2">
-            <summary class="text-xs font-semibold cursor-pointer select-none" style="color: var(--fg-muted);">Why this score?</summary>
-            <ul class="mt-1.5 space-y-1 text-xs">
-              ${(item.judge_score_breakdown || []).map((f) => {
-                const c = f.points > 0 ? "#15803d" : f.points < 0 ? "#b91c1c" : "var(--fg-muted)";
-                const p = f.points > 0 ? `+${f.points}` : `${f.points}`;
-                return `<li class="flex items-start justify-between gap-2"><span class="min-w-0 break-words" style="color: var(--fg-muted);">${escapeHtml(f.label)}</span><span class="font-bold shrink-0" style="color:${c};">${p}</span></li>`;
-              }).join("")}
-            </ul>
-          </details>
-          <a href="${item.html_url || "#"}" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center gap-1 text-xs font-semibold" style="color: #2563eb;">
-            View on GitHub
-            ${svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', "w-3 h-3")}
-          </a>`;
+          <p class="text-xs mt-2 line-clamp-2 min-h-[2rem]" style="color: var(--fg-muted);">${escapeHtml((item.warnings && item.warnings[0] && item.warnings[0].text) || "No warnings flagged.")}</p>
+          <div class="mt-auto pt-2">
+            <details>
+              <summary class="text-xs font-semibold cursor-pointer select-none" style="color: var(--fg-muted);">Why this score?</summary>
+              <ul class="mt-1.5 mb-1 space-y-1 text-xs">
+                ${(item.judge_score_breakdown || []).map((f) => {
+                  const c = f.points > 0 ? "#15803d" : f.points < 0 ? "#b91c1c" : "var(--fg-muted)";
+                  const p = f.points > 0 ? `+${f.points}` : `${f.points}`;
+                  return `<li class="flex items-start justify-between gap-2"><span class="min-w-0 break-words" style="color: var(--fg-muted);">${escapeHtml(f.label)}</span><span class="font-bold shrink-0" style="color:${c};">${p}</span></li>`;
+                }).join("")}
+              </ul>
+            </details>
+            <a href="${item.html_url || "#"}" target="_blank" rel="noopener noreferrer" class="mt-2 inline-flex items-center gap-1 text-xs font-semibold" style="color: #2563eb;">
+              View on GitHub
+              ${svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', "w-3 h-3")}
+            </a>
+          </div>`;
         card.querySelector(".remove-compare").addEventListener("click", () => {
           compareItems.splice(index, 1);
           renderCompareGrid();
@@ -822,6 +889,18 @@
         if (!res.ok) {
           throw new Error(data.detail || "Something went wrong analyzing this repo.");
         }
+
+        // First comparison of the session: if a repo is already open on the main
+        // dashboard, seed it in automatically so the user sees both side by side
+        // instead of having to re-type the one they already analyzed.
+        if (compareItems.length === 0 && lastMainResult && lastMainResult.html_url !== data.html_url) {
+          compareItems.push(lastMainResult);
+        }
+
+        if (compareItems.some((item) => item.html_url && item.html_url === data.html_url)) {
+          throw new Error("That repo is already in the comparison.");
+        }
+
         compareItems.push(data);
         renderCompareGrid();
         compareUrlInput.value = "";
@@ -831,6 +910,11 @@
       } finally {
         submitBtn.disabled = false;
       }
+    });
+
+    compareClearBtn.addEventListener("click", () => {
+      compareItems.length = 0;
+      renderCompareGrid();
     });
   </script>
 </body>
