@@ -3,27 +3,73 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DevLens — Instant Repo Audits</title>
+  <title>DevLens - Instant Repo Audits</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
   <script>
     tailwind.config = {
       theme: {
         extend: {
+          fontFamily: { sans: ["Inter", "system-ui", "sans-serif"] },
           colors: {
-            brand: {
-              50: "#eef2ff", 100: "#e0e7ff", 200: "#c7d2fe", 300: "#a5b4fc",
-              400: "#818cf8", 500: "#6366f1", 600: "#4f46e5", 700: "#4338ca",
-              800: "#3730a3", 900: "#312e81"
-            }
-          }
-        }
-      }
-    }
+            primary: { DEFAULT: "#2563eb", hover: "#1d4ed8", dim: "rgba(37,99,235,0.1)" },
+          },
+        },
+      },
+    };
   </script>
   <style>
+    :root {
+      --bg: #fafafa;
+      --card: #ffffff;
+      --border: #e4e4e7;
+      --fg: #0a0a0a;
+      --fg-muted: #52525b;
+      --tag: #f4f4f5;
+      --tag-fg: #3f3f46;
+    }
+    body { font-family: "Inter", system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
+    .dl-card {
+      background-color: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 1.25rem;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .dl-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.375rem;
+      padding: 0.25rem 0.625rem;
+      font-size: 0.75rem;
+      font-weight: 500;
+      border-radius: 9999px;
+      background-color: var(--tag);
+      color: var(--tag-fg);
+    }
+    .dl-icon-badge {
+      width: 2.25rem;
+      height: 2.25rem;
+      border-radius: 9999px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      background-color: var(--tag);
+    }
+    .dl-muted { color: var(--fg-muted); }
+    .dl-label {
+      font-size: 0.75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+      color: var(--fg-muted);
+    }
     @keyframes fade-in { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
     .fade-in { animation: fade-in 0.35s ease-out both; }
+    .step-line { position: relative; }
     .step-line::before {
       content: "";
       position: absolute;
@@ -31,91 +77,85 @@
       top: 32px;
       bottom: -24px;
       width: 2px;
-      background: #e2e8f0;
+      background: var(--border);
     }
     .step-line:last-child::before { display: none; }
+    .copy-btn { transition: background-color 0.15s ease, color 0.15s ease; }
   </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-900">
+<body class="min-h-screen">
 
-  <!-- Header -->
-  <header class="border-b border-slate-200 bg-white sticky top-0 z-10">
+  <header class="border-b sticky top-0 z-10 bg-[var(--card)]" style="border-color: var(--border);">
     <div class="max-w-4xl mx-auto px-6 py-5 flex items-center gap-3">
       <img src="/static/logo.svg" alt="DevLens" class="w-9 h-9" />
       <div>
-        <h1 class="text-xl font-bold text-brand-700">DevLens</h1>
-        <p class="text-xs text-slate-500">Instant, judge-friendly repo audits</p>
+        <h1 class="text-xl font-bold text-primary">DevLens</h1>
+        <p class="text-xs dl-muted">Instant repo audits</p>
       </div>
     </div>
   </header>
 
   <main class="max-w-4xl mx-auto px-6 py-10">
 
-    <!-- Intro -->
     <section class="text-center mb-10">
-      <h2 class="text-3xl font-extrabold tracking-tight text-slate-900">
-        Paste a repo. Get the verdict.
-      </h2>
-      <p class="mt-2 text-slate-500 max-w-xl mx-auto">
-        DevLens reads any public GitHub repository like a judge would and turns it into a
-        clean verdict — summary, risk badge, complexity, warnings, and a quick install
-        guide — without you ever opening the code.
+      <h2 class="text-3xl font-extrabold tracking-tight">Paste a repo. Get the verdict.</h2>
+      <p class="mt-2 dl-muted max-w-xl mx-auto">
+        DevLens reads any public GitHub repository the way a judge would and turns it into
+        a clear verdict: summary, risk rating, complexity, warnings, and a quick install
+        guide, without you ever opening the code.
       </p>
     </section>
 
-    <!-- Input form -->
     <form id="analyze-form" class="flex flex-col sm:flex-row gap-3 mb-8">
       <input
         id="repo-url"
         type="url"
         required
         placeholder="https://github.com/owner/repository"
-        class="flex-1 rounded-xl border border-slate-300 px-4 py-3 text-sm shadow-sm
-               focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-brand-500"
+        class="flex-1 rounded-xl border px-4 py-3 text-sm shadow-sm bg-[var(--card)]
+               focus:outline-none focus:ring-2 focus:ring-primary/40 focus:border-primary"
+        style="border-color: var(--border);"
       />
       <button
         type="submit"
         id="submit-btn"
-        class="rounded-xl bg-brand-600 px-6 py-3 text-sm font-semibold text-white
-               shadow-sm hover:bg-brand-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
+        class="rounded-xl bg-primary px-6 py-3 text-sm font-semibold text-white
+               shadow-sm hover:bg-primary-hover transition disabled:opacity-50 disabled:cursor-not-allowed"
       >
         Analyze Repo
       </button>
     </form>
 
-    <!-- Loading state -->
     <div id="loading" class="hidden flex-col items-center justify-center gap-3 py-16">
-      <svg class="animate-spin h-8 w-8 text-brand-600" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+      <svg class="animate-spin h-7 w-7 text-primary" viewBox="0 0 24 24" fill="none">
+        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3"></circle>
         <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"></path>
       </svg>
-      <p class="text-sm text-slate-500">Reading the repo and forming a verdict…</p>
+      <p class="text-sm dl-muted">Reading the repo and forming a verdict...</p>
     </div>
 
-    <!-- Error state -->
     <div id="error-box" class="hidden rounded-xl border border-red-200 bg-red-50 text-red-700 text-sm px-4 py-3 mb-6"></div>
 
-    <!-- Results -->
     <section id="results" class="hidden space-y-6">
 
       <!-- Verdict banner -->
-      <div id="verdict-banner" class="fade-in rounded-2xl border p-6 flex items-center gap-4">
-        <span id="verdict-icon" class="text-3xl leading-none"></span>
+      <div id="verdict-banner" class="fade-in dl-card p-6 flex items-center gap-4">
+        <div id="verdict-icon-wrap" class="dl-icon-badge w-12 h-12"></div>
         <div>
-          <p class="text-xs uppercase tracking-wide font-semibold opacity-70">Judge Verdict</p>
-          <p id="verdict-headline" class="text-lg font-extrabold"></p>
+          <p class="dl-label">Judge verdict</p>
+          <p id="verdict-headline" class="text-lg font-bold"></p>
         </div>
       </div>
 
-      <!-- Repo header card -->
-      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <!-- Repo header -->
+      <div class="fade-in dl-card p-6">
         <div class="flex items-start justify-between gap-4 flex-wrap">
           <div class="flex items-center gap-3">
-            <img id="repo-avatar" class="w-12 h-12 rounded-xl border border-slate-200" alt="" />
+            <img id="repo-avatar" class="w-12 h-12 rounded-xl border" style="border-color: var(--border);" alt="" />
             <div>
-              <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Repository</p>
-              <h3 id="repo-name" class="text-lg font-bold text-slate-900"></h3>
-              <p id="repo-lang" class="text-sm text-slate-500 mt-0.5"></p>
+              <p class="dl-label">Repository</p>
+              <h3 id="repo-name" class="text-lg font-bold"></h3>
+              <p id="repo-lang" class="text-sm dl-muted mt-0.5"></p>
             </div>
           </div>
           <a
@@ -123,102 +163,110 @@
             href="#"
             target="_blank"
             rel="noopener noreferrer"
-            class="inline-flex items-center gap-1.5 rounded-xl border border-slate-300 px-4 py-2
-                   text-sm font-semibold text-slate-700 hover:bg-slate-50 transition"
+            class="inline-flex items-center gap-1.5 rounded-xl border px-4 py-2
+                   text-sm font-semibold hover:bg-[var(--tag)] transition"
+            style="border-color: var(--border);"
           >
-            View on GitHub ↗
+            View on GitHub
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></svg>
           </a>
         </div>
         <div id="topics-row" class="flex flex-wrap gap-2 mt-4"></div>
-        <p id="summary" class="mt-4 text-slate-700 leading-relaxed"></p>
+        <p id="summary" class="mt-4 leading-relaxed"></p>
       </div>
 
       <!-- Stats grid -->
       <div class="fade-in grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-stars">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Stars</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-stars">-</p><p class="text-xs dl-muted">Stars</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-forks">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Forks</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><circle cx="18" cy="6" r="3"/><path d="M18 9v1a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V9"/><path d="M12 12v3"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-forks">-</p><p class="text-xs dl-muted">Forks</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-issues">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Open Issues</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-issues">-</p><p class="text-xs dl-muted">Open issues</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-contributors">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Contributors</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-contributors">-</p><p class="text-xs dl-muted">Contributors</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-license">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">License</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-license">-</p><p class="text-xs dl-muted">License</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-activity">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Last Commit</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-activity">-</p><p class="text-xs dl-muted">Last commit</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-deps">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Dependencies</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M16.5 9.4 7.5 4.21"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z"/><polyline points="3.29 7 12 12 20.71 7"/><line x1="12" y1="22" x2="12" y2="12"/></svg></div>
+          <div><p class="text-base font-bold" id="stat-deps">-</p><p class="text-xs dl-muted">Dependencies</p></div>
         </div>
-        <div class="stat-tile bg-white rounded-2xl border border-slate-200 shadow-sm p-4 text-center">
-          <p class="text-lg font-extrabold text-slate-900" id="stat-signals">–</p>
-          <p class="text-xs text-slate-500 mt-0.5">Tests · CI · Docker</p>
+        <div class="dl-card p-4 flex items-center gap-3">
+          <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M10 2v6.29a2 2 0 0 1-.5 1.32L4.21 15.7A2 2 0 0 0 6 19h12a2 2 0 0 0 1.79-3.3L14 9.6a2 2 0 0 1-.5-1.32V2"/><path d="M8.5 2h7"/><path d="M7 16h10"/></svg></div>
+          <div id="stat-signals" class="text-xs font-semibold leading-tight"></div>
         </div>
       </div>
 
       <!-- Complexity -->
-      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+      <div class="fade-in dl-card p-6">
         <div class="flex items-center justify-between mb-2">
-          <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold">Complexity Score</p>
-          <span id="complexity-label" class="text-xs font-bold px-2 py-0.5 rounded-full"></span>
+          <p class="dl-label">Complexity score</p>
+          <span id="complexity-label" class="dl-tag"></span>
         </div>
         <div class="flex items-center gap-4">
-          <div class="flex-1 h-3 rounded-full bg-slate-100 overflow-hidden">
+          <div class="flex-1 h-2.5 rounded-full overflow-hidden" style="background-color: var(--tag);">
             <div id="complexity-bar" class="h-full rounded-full transition-all duration-700 ease-out" style="width:0%"></div>
           </div>
-          <span id="complexity-value" class="text-sm font-bold text-slate-700 w-16 text-right"></span>
+          <span id="complexity-value" class="text-sm font-bold w-16 text-right"></span>
         </div>
+        <details class="mt-4 group">
+          <summary class="text-xs font-semibold cursor-pointer select-none flex items-center gap-1.5" style="color: var(--fg-muted);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5 transition-transform group-open:rotate-90"><polyline points="9 18 15 12 9 6"/></svg>
+            How this score is calculated
+          </summary>
+          <ul id="complexity-factors-list" class="mt-3 space-y-2 text-sm"></ul>
+        </details>
       </div>
 
       <!-- Tech stack -->
-      <div id="tech-card" class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-3">Tech Stack</p>
+      <div id="tech-card" class="fade-in dl-card p-6">
+        <p class="dl-label mb-3">Tech stack</p>
         <div id="tech-row" class="flex flex-wrap gap-2"></div>
       </div>
 
       <!-- Highlights + Warnings -->
       <div class="grid sm:grid-cols-2 gap-6">
-        <div id="highlights-card" class="fade-in bg-emerald-50 rounded-2xl border border-emerald-200 shadow-sm p-6">
-          <p class="text-xs uppercase tracking-wide text-emerald-700 font-bold mb-3">✅ Highlights</p>
-          <ul id="highlights-list" class="space-y-2 text-sm"></ul>
+        <div id="highlights-card" class="fade-in dl-card p-6" style="border-color: #bbf7d0; background-color: #f0fdf4;">
+          <p class="dl-label mb-3" style="color: #15803d;">Highlights</p>
+          <ul id="highlights-list" class="space-y-2.5 text-sm"></ul>
         </div>
-        <div id="warnings-card" class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-          <p class="text-xs uppercase tracking-wide text-slate-500 font-bold mb-3">⚠ Key Warnings</p>
-          <ul id="warnings-list" class="space-y-3 text-sm"></ul>
+        <div id="warnings-card" class="fade-in dl-card p-6">
+          <p class="dl-label mb-3">Key warnings</p>
+          <ul id="warnings-list" class="space-y-2.5 text-sm"></ul>
         </div>
       </div>
 
       <!-- Install guide -->
-      <div class="fade-in bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
-        <p class="text-xs uppercase tracking-wide text-slate-400 font-semibold mb-4">Quick Install Guide</p>
+      <div class="fade-in dl-card p-6">
+        <p class="dl-label mb-4">Quick install guide</p>
         <ol id="install-list" class="space-y-0"></ol>
       </div>
 
-      <!-- Footer meta -->
-      <p id="generated-meta" class="text-center text-xs text-slate-400"></p>
+      <p id="generated-meta" class="text-center text-xs dl-muted"></p>
 
     </section>
   </main>
 
-  <footer class="text-center text-xs text-slate-400 py-10 space-y-2">
-    <p>Built for the hackathon with FastAPI + Tailwind. Verdicts are AI-generated — verify before relying on them.</p>
-    <p class="space-x-4">
-      <a href="/privacy" class="hover:text-slate-600 underline">Privacy Policy</a>
-      <a href="/terms" class="hover:text-slate-600 underline">Terms of Service</a>
-      <a href="/cookies" class="hover:text-slate-600 underline">Cookie Policy</a>
+  <footer class="border-t py-10 text-center text-xs dl-muted space-y-3" style="border-color: var(--border);">
+    <p>Built for the hackathon with FastAPI and Tailwind. Verdicts are AI-generated, verify before relying on them.</p>
+    <p class="flex justify-center gap-5">
+      <a href="/privacy" class="hover:text-primary hover:underline">Privacy Policy</a>
+      <a href="/terms" class="hover:text-primary hover:underline">Terms of Service</a>
+      <a href="/cookies" class="hover:text-primary hover:underline">Cookie Policy</a>
     </p>
   </footer>
 
@@ -230,28 +278,38 @@
     const errorBox = document.getElementById("error-box");
     const results = document.getElementById("results");
 
+    const CHECK_CIRCLE = '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><path d="M22 4 12 14.01l-3-3"/>';
+    const ALERT_TRIANGLE = '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>';
+    const SHIELD_ALERT = '<path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10Z"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+    const CIRCLE_ALERT = '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>';
+    const CIRCLE_DOT = '<circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="2"/>';
+
+    function svg(inner, cls) {
+      return `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="${cls}">${inner}</svg>`;
+    }
+
     const RISK_THEME = {
       Safe: {
-        banner: "bg-emerald-50 border-emerald-200 text-emerald-800",
-        icon: "✅",
-        headline: "Safe to demo — looks clean and well documented.",
+        border: "#bbf7d0", bg: "#f0fdf4", fg: "#15803d", badge: "#dcfce7",
+        icon: CHECK_CIRCLE,
+        headline: "Safe to demo. Looks clean and well documented.",
       },
       Moderate: {
-        banner: "bg-amber-50 border-amber-200 text-amber-800",
-        icon: "🟡",
-        headline: "Needs a closer look — some gaps, but workable.",
+        border: "#fde68a", bg: "#fffbeb", fg: "#b45309", badge: "#fef3c7",
+        icon: ALERT_TRIANGLE,
+        headline: "Needs a closer look. Some gaps, but workable.",
       },
       Warning: {
-        banner: "bg-red-50 border-red-200 text-red-800",
-        icon: "🚫",
-        headline: "Proceed with caution — setup or docs look risky.",
+        border: "#fecaca", bg: "#fef2f2", fg: "#b91c1c", badge: "#fee2e2",
+        icon: SHIELD_ALERT,
+        headline: "Proceed with caution. Setup or docs look risky.",
       },
     };
 
     const SEVERITY_THEME = {
-      high: { border: "border-red-400", bg: "bg-red-50", text: "text-red-700", icon: "🔴" },
-      medium: { border: "border-amber-400", bg: "bg-amber-50", text: "text-amber-700", icon: "🟠" },
-      low: { border: "border-slate-300", bg: "bg-slate-50", text: "text-slate-600", icon: "⚪" },
+      high: { border: "#fecaca", bg: "#fef2f2", fg: "#b91c1c", icon: CIRCLE_ALERT },
+      medium: { border: "#fde68a", bg: "#fffbeb", fg: "#b45309", icon: ALERT_TRIANGLE },
+      low: { border: "var(--border)", bg: "var(--tag)", fg: "var(--fg-muted)", icon: CIRCLE_DOT },
     };
 
     form.addEventListener("submit", async (e) => {
@@ -293,12 +351,11 @@
       return div.innerHTML;
     }
 
-    // Green (easy) -> amber -> red (complex) gradient, interpolated by score.
     function scoreColor(score) {
       const stops = [
-        { at: 1, rgb: [16, 185, 129] },   // emerald-500
-        { at: 5.5, rgb: [245, 158, 11] }, // amber-500
-        { at: 10, rgb: [239, 68, 68] },   // red-500
+        { at: 1, rgb: [22, 163, 74] },
+        { at: 5.5, rgb: [217, 119, 6] },
+        { at: 10, rgb: [220, 38, 38] },
       ];
       let a = stops[0], b = stops[stops.length - 1];
       for (let i = 0; i < stops.length - 1; i++) {
@@ -313,9 +370,9 @@
     }
 
     function complexityLabel(score) {
-      if (score <= 3) return { text: "Simple", cls: "bg-emerald-100 text-emerald-700" };
-      if (score <= 6) return { text: "Moderate", cls: "bg-amber-100 text-amber-700" };
-      return { text: "Complex", cls: "bg-red-100 text-red-700" };
+      if (score <= 3) return { text: "Simple", fg: "#15803d", bg: "#dcfce7" };
+      if (score <= 6) return { text: "Moderate", fg: "#b45309", bg: "#fef3c7" };
+      return { text: "Complex", fg: "#b91c1c", bg: "#fee2e2" };
     }
 
     function timeAgo(days) {
@@ -328,19 +385,21 @@
     }
 
     function renderResults(data) {
-      // Verdict banner
       const theme = RISK_THEME[data.risk_level] || RISK_THEME.Moderate;
-      const banner = document.getElementById("verdict-banner");
-      banner.className = `fade-in rounded-2xl border p-6 flex items-center gap-4 ${theme.banner}`;
-      document.getElementById("verdict-icon").textContent = theme.icon;
-      document.getElementById("verdict-headline").textContent =
-        `${data.risk_level || "Unknown"} — ${theme.headline}`;
+      document.getElementById("verdict-banner").style.borderColor = theme.border;
+      document.getElementById("verdict-banner").style.backgroundColor = theme.bg;
+      const iconWrap = document.getElementById("verdict-icon-wrap");
+      iconWrap.style.backgroundColor = theme.badge;
+      iconWrap.style.color = theme.fg;
+      iconWrap.innerHTML = svg(theme.icon, "w-6 h-6");
+      const headline = document.getElementById("verdict-headline");
+      headline.style.color = theme.fg;
+      headline.textContent = `${data.risk_level || "Unknown"}. ${theme.headline}`;
 
-      // Repo header
       document.getElementById("repo-avatar").src = data.avatar_url || "/static/logo.svg";
       document.getElementById("repo-name").textContent = data.repo || "Unknown repo";
       document.getElementById("repo-lang").textContent =
-        [data.language, data.stars ? `⭐ ${data.stars}` : null].filter(Boolean).join(" · ");
+        [data.language, data.stars ? `${data.stars} stars` : null].filter(Boolean).join(" · ");
       document.getElementById("repo-link").href = data.html_url || "#";
       document.getElementById("summary").textContent = data.summary || "";
 
@@ -348,31 +407,27 @@
       topicsRow.innerHTML = "";
       (data.topics || []).slice(0, 8).forEach((t) => {
         const span = document.createElement("span");
-        span.className = "text-xs font-medium px-2.5 py-1 rounded-full bg-brand-50 text-brand-700";
+        span.className = "dl-tag";
         span.textContent = t;
         topicsRow.appendChild(span);
       });
 
-      // Stats grid
-      document.getElementById("stat-stars").textContent = data.stars ?? "–";
-      document.getElementById("stat-forks").textContent = data.forks ?? "–";
-      document.getElementById("stat-issues").textContent = data.open_issues ?? "–";
-      document.getElementById("stat-contributors").textContent = data.contributors_count ?? "–";
+      document.getElementById("stat-stars").textContent = data.stars ?? "-";
+      document.getElementById("stat-forks").textContent = data.forks ?? "-";
+      document.getElementById("stat-issues").textContent = data.open_issues ?? "-";
+      document.getElementById("stat-contributors").textContent = data.contributors_count ?? "-";
       document.getElementById("stat-license").textContent = data.license || "None";
       document.getElementById("stat-activity").textContent = timeAgo(data.days_since_last_commit);
       document.getElementById("stat-deps").textContent =
-        data.dependency_count !== null && data.dependency_count !== undefined
-          ? data.dependency_count
-          : "–";
-      const signals = [
-        data.has_tests ? "✓ Tests" : "✗ Tests",
-        data.has_ci ? "✓ CI" : "✗ CI",
-        data.has_dockerfile ? "✓ Docker" : "✗ Docker",
-      ];
-      document.getElementById("stat-signals").innerHTML =
-        `<span class="text-xs font-semibold leading-tight block">${signals.join("<br/>")}</span>`;
+        data.dependency_count !== null && data.dependency_count !== undefined ? data.dependency_count : "-";
 
-      // Complexity gauge
+      const signals = [
+        `${data.has_tests ? "Has" : "No"} tests`,
+        `${data.has_ci ? "Has" : "No"} CI`,
+        `${data.has_dockerfile ? "Has" : "No"} Docker`,
+      ];
+      document.getElementById("stat-signals").innerHTML = signals.join("<br/>");
+
       const score = Math.max(1, Math.min(10, Number(data.complexity_score) || 1));
       const bar = document.getElementById("complexity-bar");
       bar.style.width = `${score * 10}%`;
@@ -381,9 +436,27 @@
       const label = complexityLabel(score);
       const labelEl = document.getElementById("complexity-label");
       labelEl.textContent = label.text;
-      labelEl.className = `text-xs font-bold px-2 py-0.5 rounded-full ${label.cls}`;
+      labelEl.style.color = label.fg;
+      labelEl.style.backgroundColor = label.bg;
 
-      // Tech stack
+      const factorsList = document.getElementById("complexity-factors-list");
+      factorsList.innerHTML = "";
+      const factors = data.complexity_factors && data.complexity_factors.length
+        ? data.complexity_factors
+        : [
+            { label: "Codebase size", note: "Based on total file count in the repository." },
+            { label: "Dependencies", note: "Based on the number of declared dependencies." },
+            { label: "Architecture", note: "Based on project structure: monolith, services, infra." },
+            { label: "Tech stack diversity", note: "Based on the spread of languages and frameworks used." },
+            { label: "Setup effort", note: "Based on how much configuration is needed to run it." },
+          ];
+      factors.forEach((f) => {
+        const li = document.createElement("li");
+        li.className = "flex items-start gap-2";
+        li.innerHTML = `<span class="font-semibold shrink-0" style="color: var(--fg);">${escapeHtml(f.label)}:</span><span style="color: var(--fg-muted);">${escapeHtml(f.note)}</span>`;
+        factorsList.appendChild(li);
+      });
+
       const techCard = document.getElementById("tech-card");
       const techRow = document.getElementById("tech-row");
       techRow.innerHTML = "";
@@ -391,7 +464,9 @@
         techCard.classList.remove("hidden");
         data.tech_stack.forEach((t) => {
           const span = document.createElement("span");
-          span.className = "text-xs font-semibold px-3 py-1.5 rounded-lg bg-slate-900 text-white";
+          span.className = "text-xs font-semibold px-3 py-1.5 rounded-lg";
+          span.style.backgroundColor = "#0a0a0a";
+          span.style.color = "#ffffff";
           span.textContent = t;
           techRow.appendChild(span);
         });
@@ -399,7 +474,6 @@
         techCard.classList.add("hidden");
       }
 
-      // Highlights
       const highlightsCard = document.getElementById("highlights-card");
       const highlightsList = document.getElementById("highlights-list");
       highlightsList.innerHTML = "";
@@ -407,15 +481,15 @@
         highlightsCard.classList.remove("hidden");
         data.highlights.forEach((h) => {
           const li = document.createElement("li");
-          li.className = "flex items-start gap-2 text-emerald-800";
-          li.innerHTML = `<span class="mt-0.5">✓</span><span>${escapeHtml(h)}</span>`;
+          li.className = "flex items-start gap-2";
+          li.style.color = "#15803d";
+          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(CHECK_CIRCLE, "w-4 h-4")}</span><span>${escapeHtml(h)}</span>`;
           highlightsList.appendChild(li);
         });
       } else {
         highlightsCard.classList.add("hidden");
       }
 
-      // Warnings — severity-colored alert rows so they actually pop.
       const warningsList = document.getElementById("warnings-list");
       const warningsCard = document.getElementById("warnings-card");
       warningsList.innerHTML = "";
@@ -427,49 +501,52 @@
           const text = typeof w === "object" ? w.text : w;
           const t = SEVERITY_THEME[severity] || SEVERITY_THEME.medium;
           const li = document.createElement("li");
-          li.className = `flex items-start gap-2 border-l-4 ${t.border} ${t.bg} ${t.text} rounded-r-lg px-3 py-2 font-medium`;
-          li.innerHTML = `<span class="mt-0.5">${t.icon}</span><span>${escapeHtml(text)}</span>`;
+          li.className = "flex items-start gap-2.5 rounded-xl px-3 py-2.5 font-medium";
+          li.style.border = `1px solid ${t.border}`;
+          li.style.backgroundColor = t.bg;
+          li.style.color = t.fg;
+          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(t.icon, "w-4 h-4")}</span><span>${escapeHtml(text)}</span>`;
           warningsList.appendChild(li);
         });
       } else {
         warningsCard.classList.add("hidden");
       }
 
-      // Install guide — interactive stepper with copy buttons.
       const installList = document.getElementById("install-list");
       installList.innerHTML = "";
       (data.install_steps || []).forEach((step, i) => {
         const li = document.createElement("li");
         li.className = "step-line relative pl-11 pb-6 last:pb-0";
         li.innerHTML = `
-          <span class="absolute left-0 top-0 w-8 h-8 rounded-full bg-brand-600 text-white text-sm
+          <span class="absolute left-0 top-0 w-8 h-8 rounded-full bg-primary text-white text-sm
                        font-bold flex items-center justify-center">${i + 1}</span>
-          <div class="flex items-center gap-2 bg-slate-900 rounded-lg px-3 py-2.5">
-            <code class="flex-1 text-emerald-300 text-sm font-mono overflow-x-auto whitespace-pre">${escapeHtml(step)}</code>
+          <div class="flex items-center gap-2 rounded-lg px-3 py-2.5 border" style="background-color: var(--tag); border-color: var(--border);">
+            <code class="flex-1 text-sm font-mono overflow-x-auto whitespace-pre" style="color: var(--fg);">${escapeHtml(step)}</code>
             <button type="button"
-              class="copy-btn shrink-0 text-xs font-semibold text-slate-300 hover:text-white
-                     border border-slate-600 hover:border-slate-400 rounded-md px-2 py-1 transition">
-              Copy
+              class="copy-btn shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-md px-2 py-1 bg-[var(--card)] hover:bg-white"
+              style="color: var(--fg-muted); border:1px solid var(--border);">
+              ${svg('<rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>', "w-3.5 h-3.5")}
+              <span>Copy</span>
             </button>
           </div>`;
         const btn = li.querySelector(".copy-btn");
+        const label = btn.querySelector("span");
         btn.addEventListener("click", async () => {
           try {
             await navigator.clipboard.writeText(step);
-            btn.textContent = "Copied!";
-            setTimeout(() => (btn.textContent = "Copy"), 1500);
+            label.textContent = "Copied";
+            setTimeout(() => (label.textContent = "Copy"), 1500);
           } catch {
-            btn.textContent = "Failed";
+            label.textContent = "Failed";
           }
         });
         installList.appendChild(li);
       });
 
-      // Footer meta
       const generatedMeta = document.getElementById("generated-meta");
       if (data.generated_at) {
         const d = new Date(data.generated_at);
-        generatedMeta.textContent = `Generated ${d.toLocaleString()} · Verdict is AI-generated, verify before relying on it.`;
+        generatedMeta.textContent = `Generated ${d.toLocaleString()}. Verdict is AI-generated, verify before relying on it.`;
       } else {
         generatedMeta.textContent = "";
       }

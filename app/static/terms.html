@@ -3,73 +3,90 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Terms of Service — DevLens</title>
+  <title>Terms of Service - DevLens</title>
   <link rel="icon" type="image/svg+xml" href="/static/logo.svg" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root { --bg: #fafafa; --card: #ffffff; --border: #e4e4e7; --fg: #0a0a0a; --fg-muted: #52525b; }
+    body { font-family: "Inter", system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
+    h2 { font-weight: 700; font-size: 1.125rem; margin-top: 2rem; margin-bottom: 0.5rem; }
+    p, li { color: var(--fg-muted); line-height: 1.7; }
+    p + p { margin-top: 0.5rem; }
+    a.inline-link { color: #2563eb; text-decoration: underline; }
+  </style>
 </head>
-<body class="bg-slate-50 min-h-screen text-slate-800">
-  <header class="border-b border-slate-200 bg-white">
-    <div class="max-w-3xl mx-auto px-6 py-5 flex items-center gap-3">
+<body class="min-h-screen">
+  <header class="border-b sticky top-0 z-10 bg-[var(--card)]" style="border-color: var(--border);">
+    <div class="max-w-3xl mx-auto px-6 py-5 flex items-center justify-between gap-3">
       <a href="/" class="flex items-center gap-3">
         <img src="/static/logo.svg" alt="DevLens" class="w-8 h-8" />
-        <span class="text-lg font-bold text-indigo-700">DevLens</span>
+        <span class="text-lg font-bold" style="color:#2563eb;">DevLens</span>
+      </a>
+      <a href="/" class="inline-flex items-center gap-1.5 text-sm font-semibold rounded-xl border px-3 py-1.5 hover:bg-[#f4f4f5] transition" style="border-color: var(--border);">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/></svg>
+        Back to DevLens
       </a>
     </div>
   </header>
 
-  <main class="max-w-3xl mx-auto px-6 py-12 prose prose-slate">
-    <h1 class="text-3xl font-extrabold text-slate-900">Terms of Service</h1>
-    <p class="text-sm text-slate-500">Last updated: 2026</p>
+  <main class="max-w-3xl mx-auto px-6 py-12">
+    <h1 class="text-3xl font-extrabold">Terms of Service</h1>
+    <p class="text-sm mt-1">Last updated: 2026</p>
 
-    <p>DevLens is a hackathon project provided for demonstration and informational
-    purposes. By using it, you agree to the following terms.</p>
+    <p class="mt-6">DevLens is a hackathon project provided for demonstration and
+    informational purposes. By using it, you agree to the following terms.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">1. What DevLens is</h2>
-    <p>DevLens generates an AI-assisted, at-a-glance summary of a public GitHub
-    repository: a project description, a complexity score, a risk badge, warnings, and
-    an install guide. It is a triage aid, not a certification.</p>
+    <h2>1. What DevLens is</h2>
+    <p>DevLens generates an AI-assisted, at-a-glance summary of a public GitHub repository:
+    a project description, a complexity score, a risk rating, warnings, and an install
+    guide. It is a triage aid, not a certification.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">2. AI-generated content</h2>
+    <h2>2. AI-generated content</h2>
     <p>The summary, complexity score, risk level, warnings, highlights, and install steps
-    shown by DevLens are generated automatically by a large language model based on
-    public repository metadata. They <strong>may be incomplete, outdated, or
-    inaccurate</strong>. DevLens does not execute, compile, or run the analyzed code, and
-    does not perform a manual security review. Always verify anything important directly
-    against the source repository before relying on it.</p>
+    shown by DevLens are generated automatically by a large language model based on public
+    repository metadata. They may be incomplete, outdated, or inaccurate. DevLens does not
+    execute, compile, or run the analyzed code, and does not perform a manual security
+    review. Always verify anything important directly against the source repository before
+    relying on it.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">3. Not a security or legal audit</h2>
-    <p>DevLens is <strong>not</strong> a substitute for a professional security audit,
-    a code review, or legal/compliance advice. Risk badges ("Safe", "Moderate",
-    "Warning") reflect surface-level signals only (documentation quality, presence of
-    tests/CI, license, activity) and are not a guarantee that a repository is free of
-    vulnerabilities or malicious code.</p>
+    <h2>3. Not a security or legal audit</h2>
+    <p>DevLens is not a substitute for a professional security audit, a code review, or
+    legal or compliance advice. Risk ratings (Safe, Moderate, Warning) reflect
+    surface-level signals only (documentation quality, presence of tests and CI, license,
+    activity) and are not a guarantee that a repository is free of vulnerabilities or
+    malicious code.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">4. No warranty</h2>
-    <p>DevLens is provided "as is" and "as available," without warranties of any kind,
-    express or implied, including but not limited to fitness for a particular purpose,
-    accuracy, or availability.</p>
+    <h2>4. No warranty</h2>
+    <p>DevLens is provided as is and as available, without warranties of any kind, express
+    or implied, including but not limited to fitness for a particular purpose, accuracy,
+    or availability.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">5. Limitation of liability</h2>
+    <h2>5. Limitation of liability</h2>
     <p>To the maximum extent permitted by law, the maintainers of DevLens are not liable
-    for any decision made, or damages incurred, based on DevLens's output — including
+    for any decision made, or damages incurred, based on DevLens's output, including
     decisions made by hackathon judges, developers, or any other user.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">6. Acceptable use</h2>
+    <h2>6. Acceptable use</h2>
     <p>You agree not to use DevLens to abuse, scrape at scale, or attempt to circumvent
-    rate limits or the security of the service, and not to submit URLs pointing to
-    content you do not have the right to analyze.</p>
+    rate limits or the security of the service, and not to submit URLs pointing to content
+    you do not have the right to analyze.</p>
 
-    <h2 class="text-xl font-bold text-slate-900 mt-8">7. Open source</h2>
+    <h2>7. Open source</h2>
     <p>DevLens's own source code is available at the
-    <a href="https://github.com/Josequevedov08/DevLens" class="text-indigo-600 underline">
-    project's GitHub repository</a>.</p>
+    <a href="https://github.com/Josequevedov08/DevLens" class="inline-link">project's
+    GitHub repository</a>.</p>
   </main>
 
-  <footer class="text-center text-xs text-slate-400 py-10 space-x-4">
-    <a href="/" class="hover:text-slate-600">Home</a>
-    <a href="/privacy" class="hover:text-slate-600">Privacy</a>
-    <a href="/terms" class="hover:text-slate-600">Terms</a>
-    <a href="/cookies" class="hover:text-slate-600">Cookies</a>
+  <footer class="border-t py-10 text-center text-xs" style="border-color: var(--border); color: var(--fg-muted);">
+    <p class="flex justify-center gap-5">
+      <a href="/" class="hover:underline">Home</a>
+      <a href="/privacy" class="hover:underline">Privacy</a>
+      <a href="/terms" class="hover:underline">Terms</a>
+      <a href="/cookies" class="hover:underline">Cookies</a>
+    </p>
   </footer>
 </body>
 </html>

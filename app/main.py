@@ -1,5 +1,5 @@
 """
-DevLens - instant, judge-friendly audits of GitHub repositories.
+DevLens - instant audits of GitHub repositories.
 
 Flow:
   1. Take a GitHub repo URL.
@@ -274,6 +274,13 @@ prose, matching exactly this schema:
 {
   "summary": "Exactly 2 sentences describing what the project does and how it's built.",
   "complexity_score": <integer 1-10, 1 = trivial, 10 = extremely complex>,
+  "complexity_factors": [
+    {"label": "Codebase size", "note": "one short clause on file count / repo scale"},
+    {"label": "Dependencies", "note": "one short clause on dependency_count and what they imply"},
+    {"label": "Architecture", "note": "one short clause on structure: monolith, services, infra"},
+    {"label": "Tech stack diversity", "note": "one short clause on language/framework spread"},
+    {"label": "Setup effort", "note": "one short clause on how much work install/config takes"}
+  ],
   "risk_level": "Safe" | "Moderate" | "Warning",
   "tech_stack": ["short tags for the languages/frameworks/services actually used, max 6"],
   "highlights": ["short positive callouts a judge would want to know, max 5"],
@@ -284,6 +291,10 @@ prose, matching exactly this schema:
 }
 
 Rules:
+- "complexity_score" must be derived from exactly the 5 dimensions listed in
+  "complexity_factors" (codebase size, dependency count, architecture, tech stack
+  diversity, setup effort). Always return all 5 factors, each with a short, specific note
+  grounded in the provided signal, never a generic placeholder.
 - Use the provided signal (license presence, contributors_count, days_since_last_commit,
   has_tests, has_ci, has_dockerfile, has_env_example, dependency_count) to justify your
   warnings and highlights instead of guessing.
