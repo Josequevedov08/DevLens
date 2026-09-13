@@ -35,7 +35,7 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 AI_PROVIDER = os.getenv("AI_PROVIDER", "groq").lower()
 
 GROQ_URL = "https://api.groq.com/openai/v1/chat/completions"
-GROQ_MODEL = "llama-3.3-70b-versatile"
+GROQ_MODEL = "openai/gpt-oss-120b"
 
 # Standard generative language endpoint - swap model name only if Google renames it.
 GEMINI_URL = (
@@ -74,7 +74,9 @@ def gh_headers() -> dict:
 
 async def fetch_repo_signal(owner: str, repo: str) -> dict:
     base = f"https://api.github.com/repos/{owner}/{repo}"
-    async with httpx.AsyncClient(headers=gh_headers(), timeout=15) as client:
+    async with httpx.AsyncClient(
+        headers=gh_headers(), timeout=15, follow_redirects=True
+    ) as client:
         repo_res = await client.get(base)
         if repo_res.status_code == 404:
             raise HTTPException(404, "Repository not found (is it public?).")
