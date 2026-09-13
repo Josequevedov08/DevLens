@@ -145,16 +145,39 @@ VIDEO_LINK_RE = re.compile(
 DEMO_LINK_RE = re.compile(
     r'https?://[^\s\)\]"\'>]+\.(?:vercel\.app|netlify\.app|herokuapp\.com|'
     r'onrender\.com|github\.io|pages\.dev|streamlit\.app|railway\.app)'
-    r'[^\s\)\]"\'>]*'
+    r'[^\s\)\]"\'>]*',
+    re.IGNORECASE,
+)
+
+# README badges that are NOT the project's own site (solidarity banners, funding
+# links, coverage badges, etc.) but happen to live on one of the DEMO_LINK_RE
+# hosting domains and would otherwise be misread as "the project's live demo".
+DEMO_LINK_DENYLIST = (
+    "standwithukraine", "opencollective.com", "buymeacoffee.com",
+    "patreon.com", "codecov.io", "coveralls.io", "shields.io",
 )
 
 
-def extract_readme_links(readme_text: str) -> dict:
+def extract_readme_links(readme_text: str, owner: str = "") -> dict:
     video_match = VIDEO_LINK_RE.search(readme_text)
-    demo_match = DEMO_LINK_RE.search(readme_text)
+
+    demo_url = None
+    for match in DEMO_LINK_RE.finditer(readme_text):
+        candidate = match.group(0)
+        low = candidate.lower()
+        if any(bad in low for bad in DEMO_LINK_DENYLIST):
+            continue
+        # A github.io link is only trustworthy as "this project's site" when it's
+        # hosted under the repo owner's own github.io domain; other people's
+        # github.io pages linked from a README (badges, credits, etc.) are not.
+        if "github.io" in low and owner and f"{owner.lower()}.github.io" not in low:
+            continue
+        demo_url = candidate
+        break
+
     return {
         "video_url": video_match.group(0) if video_match else None,
-        "demo_url": demo_match.group(0) if demo_match else None,
+        "demo_url": demo_url,
     }
 
 
@@ -329,7 +352,12 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
             )
         )
 
-    readme_links = extract_readme_links(readme_text)
+    readme_links = extract_readme_links(readme_text, owner=owner)
+    # GitHub's own "homepage" field (the link shown next to a repo's description on
+    # GitHub) is a structured, author-set value, more reliable than anything scraped
+    # out of README prose, so it takes priority as the demo link when present.
+    homepage = (meta.get("homepage") or "").strip() or None
+    demo_url = homepage or readme_links["demo_url"]
     license_info = meta.get("license") or {}
 
     return {
@@ -360,7 +388,8 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
             p.lower() in (".env.example", ".env.sample") for p in file_paths
         ),
         "readme_excerpt": readme_text[:4000],
-        "demo_url": readme_links["demo_url"],
+        "homepage_url": homepage,
+        "demo_url": demo_url,
         "video_url": readme_links["video_url"],
         "has_committed_env_file": security["has_committed_env_file"],
         "nested_env_files": security["nested_env_files"],
@@ -378,41 +407,59 @@ async def fetch_repo_signal(owner: str, repo: str) -> dict:
 SEVERITY_PENALTY = {"high": 15, "medium": 7, "low": 3}
 
 
-def compute_judge_score(signal: dict, verdict: dict) -> int:
+def compute_judge_score(signal: dict, verdict: dict) -> tuple[int, list[dict]]:
+    """Returns (score, breakdown) where breakdown lists every line item that went
+    into the score, so the UI can show judges exactly why one repo outscored
+    another instead of presenting the number as a black box."""
+    breakdown = [{"label": "Base score", "points": 40}]
     score = 40
 
     if signal.get("license"):
+        breakdown.append({"label": "Open-source license present", "points": 15})
         score += 15
     if signal.get("has_tests"):
+        breakdown.append({"label": "Automated tests present", "points": 10})
         score += 10
     if signal.get("has_ci"):
+        breakdown.append({"label": "CI pipeline configured", "points": 10})
         score += 10
     if signal.get("has_dockerfile"):
+        breakdown.append({"label": "Dockerfile present", "points": 5})
         score += 5
     if signal.get("demo_url"):
+        breakdown.append({"label": "Live demo or website linked", "points": 10})
         score += 10
 
     days = signal.get("days_since_last_commit")
     if days is not None:
         if days <= 30:
+            breakdown.append({"label": "Committed in the last 30 days", "points": 10})
             score += 10
         elif days <= 180:
+            breakdown.append({"label": "Committed in the last 6 months", "points": 5})
             score += 5
 
     for warning in verdict.get("warnings", []):
         severity = warning.get("severity", "medium") if isinstance(warning, dict) else "medium"
-        score -= SEVERITY_PENALTY.get(severity, 7)
+        text = warning.get("text", "warning") if isinstance(warning, dict) else str(warning)
+        penalty = SEVERITY_PENALTY.get(severity, 7)
+        breakdown.append({"label": f"Warning ({severity}): {text}", "points": -penalty})
+        score -= penalty
 
     if signal.get("has_committed_env_file"):
+        breakdown.append({"label": "Root .env file committed", "points": -20})
         score -= 20
     elif signal.get("nested_env_files"):
+        breakdown.append({"label": "Nested .env file found (likely a test fixture)", "points": -5})
         score -= 5
     if signal.get("potential_secrets"):
+        breakdown.append({"label": "Possible secret key pattern found", "points": -15})
         score -= 15
     if signal.get("undocumented_env_vars") and not signal.get("has_env_example"):
+        breakdown.append({"label": "Undocumented environment variables", "points": -5})
         score -= 5
 
-    return max(0, min(100, round(score)))
+    return max(0, min(100, round(score))), breakdown
 
 
 # ---------------------------------------------------------------------------
@@ -613,7 +660,7 @@ async def analyze(req: AnalyzeRequest, request: Request):
     ]
     verdict["warnings"] = scan_warnings + ai_warnings
 
-    judge_score = compute_judge_score(signal, verdict)
+    judge_score, judge_score_breakdown = compute_judge_score(signal, verdict)
 
     return {
         "repo": signal["name"],
@@ -635,9 +682,11 @@ async def analyze(req: AnalyzeRequest, request: Request):
         "has_tests": signal["has_tests"],
         "has_ci": signal["has_ci"],
         "has_dockerfile": signal["has_dockerfile"],
+        "homepage_url": signal["homepage_url"],
         "demo_url": signal["demo_url"],
         "video_url": signal["video_url"],
         "judge_score": judge_score,
+        "judge_score_breakdown": judge_score_breakdown,
         "generated_at": datetime.now(timezone.utc).isoformat(),
         **verdict,
     }

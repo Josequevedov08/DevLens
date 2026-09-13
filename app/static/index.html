@@ -31,7 +31,7 @@
       --tag: #f4f4f5;
       --tag-fg: #3f3f46;
     }
-    body { font-family: "Inter", system-ui, sans-serif; background-color: var(--bg); color: var(--fg); }
+    body { font-family: "Inter", system-ui, sans-serif; background-color: var(--bg); color: var(--fg); overflow-x: hidden; }
     .dl-card {
       background-color: var(--card);
       border: 1px solid var(--border);
@@ -161,9 +161,23 @@
             <span>Copy verdict</span>
           </button>
         </div>
+        <details class="w-full mt-1">
+          <summary class="text-xs font-semibold cursor-pointer select-none inline-flex items-center gap-1.5" style="color: var(--fg-muted);">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3.5 h-3.5"><polyline points="9 18 15 12 9 6"/></svg>
+            Why this judge score
+          </summary>
+          <ul id="judge-score-breakdown" class="mt-3 space-y-1.5 text-sm"></ul>
+        </details>
       </div>
 
-      <!-- Demo / video links, only shown when found in the README -->
+      <!-- Demo video, embedded and playable in place -->
+      <div id="video-embed-wrap" class="fade-in hidden dl-card p-3">
+        <div class="relative w-full rounded-xl overflow-hidden" style="padding-top:56.25%;">
+          <iframe id="video-embed" class="absolute inset-0 w-full h-full rounded-xl" src="" title="Demo video" frameborder="0" allowfullscreen></iframe>
+        </div>
+      </div>
+
+      <!-- Demo / website links -->
       <div id="demo-row" class="fade-in hidden flex flex-wrap gap-3"></div>
 
       <!-- Repo header -->
@@ -214,7 +228,13 @@
         </div>
         <div class="dl-card p-4 flex items-center gap-3">
           <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg></div>
-          <div><p class="text-base font-bold" id="stat-license">-</p><p class="text-xs dl-muted">License</p></div>
+          <div>
+            <p class="text-base font-bold" id="stat-license">-</p>
+            <p class="text-xs dl-muted inline-flex items-center gap-1" title="Detected by GitHub from the repo's LICENSE file, not from the README">
+              License
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-3 h-3"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+            </p>
+          </div>
         </div>
         <div class="dl-card p-4 flex items-center gap-3">
           <div class="dl-icon-badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="w-4 h-4"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
@@ -440,6 +460,17 @@
       return `${Math.round(days / 365)}y ago`;
     }
 
+    function toEmbedUrl(videoUrl) {
+      if (!videoUrl) return null;
+      let m = videoUrl.match(/youtube\.com\/watch\?v=([\w-]+)/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
+      m = videoUrl.match(/youtu\.be\/([\w-]+)/);
+      if (m) return `https://www.youtube.com/embed/${m[1]}`;
+      m = videoUrl.match(/loom\.com\/share\/([\w-]+)/);
+      if (m) return `https://www.loom.com/embed/${m[1]}`;
+      return null;
+    }
+
     function judgeScoreColor(score) {
       if (score >= 75) return "#15803d";
       if (score >= 50) return "#b45309";
@@ -504,11 +535,35 @@
         }
       };
 
+      const breakdownList = document.getElementById("judge-score-breakdown");
+      breakdownList.innerHTML = "";
+      (data.judge_score_breakdown || []).forEach((item) => {
+        const li = document.createElement("li");
+        li.className = "flex items-center justify-between gap-3";
+        const pointsColor = item.points > 0 ? "#15803d" : item.points < 0 ? "#b91c1c" : "var(--fg-muted)";
+        const pointsText = item.points > 0 ? `+${item.points}` : `${item.points}`;
+        li.innerHTML = `<span class="min-w-0 break-words" style="color: var(--fg-muted);">${escapeHtml(item.label)}</span><span class="font-bold shrink-0" style="color: ${pointsColor};">${pointsText}</span>`;
+        breakdownList.appendChild(li);
+      });
+
+      const videoWrap = document.getElementById("video-embed-wrap");
+      const videoFrame = document.getElementById("video-embed");
+      const embedUrl = toEmbedUrl(data.video_url);
+      if (embedUrl) {
+        videoFrame.src = embedUrl;
+        videoWrap.classList.remove("hidden");
+      } else {
+        videoFrame.src = "";
+        videoWrap.classList.add("hidden");
+      }
+
       const demoRow = document.getElementById("demo-row");
       demoRow.innerHTML = "";
       const links = [
-        data.demo_url ? { url: data.demo_url, label: "Open live demo" } : null,
-        data.video_url ? { url: data.video_url, label: "Watch demo video" } : null,
+        data.demo_url
+          ? { url: data.demo_url, label: data.homepage_url ? "Visit website" : "Open live demo" }
+          : null,
+        data.video_url && !embedUrl ? { url: data.video_url, label: "Watch demo video" } : null,
       ].filter(Boolean);
       if (links.length) {
         demoRow.classList.remove("hidden");
@@ -591,7 +646,7 @@
       factors.forEach((f) => {
         const li = document.createElement("li");
         li.className = "flex items-start gap-2";
-        li.innerHTML = `<span class="font-semibold shrink-0" style="color: var(--fg);">${escapeHtml(f.label)}:</span><span style="color: var(--fg-muted);">${escapeHtml(f.note)}</span>`;
+        li.innerHTML = `<span class="font-semibold shrink-0" style="color: var(--fg);">${escapeHtml(f.label)}:</span><span class="min-w-0 break-words" style="color: var(--fg-muted);">${escapeHtml(f.note)}</span>`;
         factorsList.appendChild(li);
       });
 
@@ -621,7 +676,7 @@
           const li = document.createElement("li");
           li.className = "flex items-start gap-2";
           li.style.color = "#15803d";
-          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(CHECK_CIRCLE, "w-4 h-4")}</span><span>${escapeHtml(h)}</span>`;
+          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(CHECK_CIRCLE, "w-4 h-4")}</span><span class="min-w-0 break-words">${escapeHtml(h)}</span>`;
           highlightsList.appendChild(li);
         });
       } else {
@@ -647,7 +702,7 @@
           const badge = source === "scan"
             ? '<span class="ml-1.5 align-middle text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style="background-color:rgba(0,0,0,0.08);">Verified</span>'
             : "";
-          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(t.icon, "w-4 h-4")}</span><span>${escapeHtml(text)}${badge}</span>`;
+          li.innerHTML = `<span class="mt-0.5 shrink-0">${svg(t.icon, "w-4 h-4")}</span><span class="min-w-0 break-words">${escapeHtml(text)}${badge}</span>`;
           warningsList.appendChild(li);
         });
       } else {
@@ -663,7 +718,7 @@
           <span class="absolute left-0 top-0 w-8 h-8 rounded-full bg-primary text-white text-sm
                        font-bold flex items-center justify-center">${i + 1}</span>
           <div class="flex items-center gap-2 rounded-lg px-3 py-2.5 border" style="background-color: var(--tag); border-color: var(--border);">
-            <code class="flex-1 text-sm font-mono overflow-x-auto whitespace-pre" style="color: var(--fg);">${escapeHtml(step)}</code>
+            <code class="flex-1 min-w-0 text-sm font-mono overflow-x-auto whitespace-pre" style="color: var(--fg);">${escapeHtml(step)}</code>
             <button type="button"
               class="copy-btn shrink-0 inline-flex items-center gap-1.5 text-xs font-semibold rounded-md px-2 py-1 bg-[var(--card)] hover:bg-white"
               style="color: var(--fg-muted); border:1px solid var(--border);">
@@ -727,6 +782,16 @@
             <span class="dl-tag">${item.complexity_score ?? "-"} / 10 complexity</span>
           </div>
           <p class="text-xs mt-2 line-clamp-2" style="color: var(--fg-muted);">${escapeHtml((item.warnings && item.warnings[0] && item.warnings[0].text) || "No warnings flagged.")}</p>
+          <details class="mt-2">
+            <summary class="text-xs font-semibold cursor-pointer select-none" style="color: var(--fg-muted);">Why this score?</summary>
+            <ul class="mt-1.5 space-y-1 text-xs">
+              ${(item.judge_score_breakdown || []).map((f) => {
+                const c = f.points > 0 ? "#15803d" : f.points < 0 ? "#b91c1c" : "var(--fg-muted)";
+                const p = f.points > 0 ? `+${f.points}` : `${f.points}`;
+                return `<li class="flex items-start justify-between gap-2"><span class="min-w-0 break-words" style="color: var(--fg-muted);">${escapeHtml(f.label)}</span><span class="font-bold shrink-0" style="color:${c};">${p}</span></li>`;
+              }).join("")}
+            </ul>
+          </details>
           <a href="${item.html_url || "#"}" target="_blank" rel="noopener noreferrer" class="mt-3 inline-flex items-center gap-1 text-xs font-semibold" style="color: #2563eb;">
             View on GitHub
             ${svg('<path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/>', "w-3 h-3")}
